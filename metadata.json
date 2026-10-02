@@ -1,0 +1,8 @@
+{
+  "name": "Portal Maria Padilha Rainha das 7 Encruzilhadas",
+  "description": "Portal espiritual completo com consultas premium, oráculos, biblioteca esotérica e orientação da Rainha Maria Padilha e mais de 300 Pombo Giras.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

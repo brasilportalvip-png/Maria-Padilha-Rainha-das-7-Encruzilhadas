@@ -1,0 +1,60 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Deny all by default
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Users Collection
+    match /users/{userId} {
+      // User can read their own profile
+      allow read: if request.auth != null && request.auth.uid == userId;
+
+      // User profile can only be created by auth user matching their own UID,
+      // but cannot set credits or role directly from client
+      allow create: if request.auth != null && request.auth.uid == userId
+                    && (!request.resource.data.keys().hasAny(['credits', 'role', 'isBlocked'])
+                        || request.resource.data.credits == 0);
+
+      // Updates from client cannot modify sensitive fields (credits, role, isBlocked)
+      allow update: if request.auth != null && request.auth.uid == userId
+                    && !request.resource.data.diff(resource.data).affectedKeys()
+                        .hasAny(['credits', 'role', 'isAdmin', 'isBlocked', 'antiFraudScore']);
+
+      allow delete: if false; // Deletion handled server-side under LGPD
+    }
+
+    // Readings Collection
+    match /readings/{readingId} {
+      allow read: if request.auth != null && resource.data.uid == request.auth.uid;
+      allow write: if false; // Only server can write immutable readings
+    }
+
+    // Credit Ledger (Server Authoritative - Client CANNOT WRITE)
+    match /credit_ledger/{ledgerId} {
+      allow read: if request.auth != null && resource.data.uid == request.auth.uid;
+      allow write: if false; // Immutable, server/admin only
+    }
+
+    // Payment Orders (Client CANNOT WRITE)
+    match /payment_orders/{orderId} {
+      allow read: if request.auth != null && resource.data.uid == request.auth.uid;
+      allow write: if false;
+    }
+
+    // Diary Entries (Private to owner)
+    match /diary/{entryId} {
+      allow read, delete: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      allow update: if request.auth != null && resource.data.userId == request.auth.uid
+                    && request.resource.data.userId == request.auth.uid;
+    }
+
+    // Security Logs (Admin / Server only)
+    match /security_logs/{logId} {
+      allow read, write: if false;
+    }
+  }
+}

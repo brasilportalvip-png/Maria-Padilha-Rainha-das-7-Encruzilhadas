@@ -1,0 +1,14 @@
+User-agent: *
+Allow: /
+Allow: /privacidade
+Allow: /termos
+Disallow: /admin
+Disallow: /api/
+Disallow: /auth
+Disallow: /chat
+Disallow: /credits
+Disallow: /diary
+Disallow: /dashboard
+Disallow: /account
+
+Sitemap: https://maria-padilha-rainha-das-7-encruzil.vercel.app/sitemap.xml

@@ -1,0 +1,34 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  verify:
+    name: Lint, Test & Build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+          cache: 'npm'
+
+      - name: Install dependencies (Strict npm ci)
+        run: npm ci
+
+      - name: Run TypeScript typecheck / lint
+        run: npm run lint
+
+      - name: Run automated test suite (Vitest)
+        run: npm test
+
+      - name: Build application
+        run: npm run build
