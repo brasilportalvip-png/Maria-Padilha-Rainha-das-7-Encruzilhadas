@@ -17,6 +17,25 @@ import type {
 const testSpiritualProfiles = new Map<string, PermanentSpiritualProfile>();
 const testSpiritualHistories = new Map<string, LivingSpiritualHistory>();
 
+function getRulingPlanet(sunSign: string): string {
+  const signRulers: Record<string, string> = {
+    'Áries': 'Marte',
+    'Touro': 'Vênus',
+    'Gêmeos': 'Mercúrio',
+    'Câncer': 'Lua',
+    'Leão': 'Sol',
+    'Virgem': 'Mercúrio',
+    'Libra': 'Vênus',
+    'Escorpião': 'Marte',
+    'Sagitário': 'Júpiter',
+    'Capricórnio': 'Saturno',
+    'Aquário': 'Saturno',
+    'Peixes': 'Júpiter',
+  };
+
+  return signRulers[sunSign] || 'Sol';
+}
+
 export function generateNatalSignature(natal: {
   fullName: string;
   birthDate: string;
@@ -78,13 +97,13 @@ function deriveArchetypesAndKarmicPatterns(
   ];
 
   const reincarnationThemes = [
-    `Resgate de compromissos kármicos assumidos sob a égide de ${astrology.rulingPlanet}.`,
+    `Resgate de compromissos kármicos assumidos sob a égide de ${getRulingPlanet(astrology.sunSign)}.`,
     `Transformação de antigas mágoas em autoridade e liderança espiritual compassiva.`,
     `Alinhamento das escolhas materiais com o propósito primordial da alma.`,
   ];
 
   const personalityPatterns = [
-    `Inteligência perceptiva aguçada sob o regente ${astrology.rulingPlanet}.`,
+    `Inteligência perceptiva aguçada sob o regente ${getRulingPlanet(astrology.sunSign)}.`,
     `Sensibilidade às vibrações do ambiente e forte ligação com a ancestralidade.`,
     `Resistência perseverante diante de obstáculos que desanimam pessoas comuns.`,
   ];
@@ -165,7 +184,11 @@ export async function getOrCreateSpiritualProfile(user: UserProfile): Promise<Pe
   // Natal data has changed or first calculation: Deterministic recalculation
   const numerology = calculateNumerology(user.fullName, user.birthDate);
   const cabala = calculateCabala(user.birthDate);
-  const astrology = calculateAstrology(user.birthDate, user.city);
+  const astrology = calculateAstrology(
+    user.birthDate,
+    user.birthTime,
+    user.timezone || 'America/Sao_Paulo'
+  );
   const derived = deriveArchetypesAndKarmicPatterns(numerology, cabala, astrology);
 
   // Check if there was an earlier version to bump
@@ -208,10 +231,10 @@ export async function getOrCreateSpiritualProfile(user: UserProfile): Promise<Pe
     astrology: {
       sunSign: astrology.sunSign,
       element: astrology.element,
-      rulingPlanet: astrology.rulingPlanet,
+      rulingPlanet: getRulingPlanet(astrology.sunSign),
       lunarPhase: astrology.lunarPhase,
-      planetaryHour: astrology.planetaryHour,
-      astrologicalGuidance: astrology.astrologicalGuidance,
+      planetaryHour: astrology.planetaryHourRuler,
+      astrologicalGuidance: astrology.cosmicAdvice,
     },
     karmicPatterns: {
       karmicLessons: derived.recurrentLessons,
@@ -220,7 +243,7 @@ export async function getOrCreateSpiritualProfile(user: UserProfile): Promise<Pe
     },
     spiritualCycles: {
       personalYear: (numerology as any).personalYear || 1,
-      cycleTheme: `Ano Pessoal ${(numerology as any).personalYear || 1} regido pela energia de ${astrology.rulingPlanet}`,
+      cycleTheme: `Ano Pessoal ${(numerology as any).personalYear || 1} regido pela energia de ${getRulingPlanet(astrology.sunSign)}`,
       spiritualPhase: `Ciclo de ${cabala.sephirahName}`,
     },
     archetypes: {
@@ -401,7 +424,7 @@ Nome: ${partnerData.name}
 ${partnerData.birthDate ? `Nascimento: ${partnerData.birthDate}` : 'Nascimento não informado (análise por vibração onomástica)'}
 Papel na vida do consulente: ${partnerData.role || 'parceiro_amoroso'}
 ${pNumerology ? `Caminho de Vida (Destino): ${pNumerology.lifePathNumber} | Expressão: ${pNumerology.expressionNumber}` : ''}
-${pAstrology ? `Signo Solar: ${pAstrology.sunSign} | Elemento: ${pAstrology.element} | Regente: ${pAstrology.rulingPlanet}` : ''}
+${pAstrology ? `Signo Solar: ${pAstrology.sunSign} | Elemento: ${pAstrology.element} | Regente: ${getRulingPlanet(pAstrology.sunSign)}` : ''}
 ${pCabala ? `Sefira Regente: ${pCabala.sephirahName} | Arcanjo: ${pCabala.rulingArchangel}` : ''}
 `;
   }
@@ -434,7 +457,7 @@ Sombra / Alerta Espiritual: ${rawOracleResult.buzios.oduShadow}
 === CONTEXTO ESPIRITUAL PROFUNDO DO CONSULENTE ===
 Nome: ${user.fullName}
 Nascimento: ${user.birthDate}${user.birthTime ? ` às ${user.birthTime}` : ''} (${user.city || 'Brasil'})
-Data e Hora da Consulta: ${temporal.nowDateISO} (${temporal.dayOfWeek}, ${temporal.hourOfDay}h — Fuso: ${userTimezone})
+Data e Hora da Consulta: ${temporal.referenceIso} (${temporal.userDayOfWeek}, ${temporal.userFormattedTime} — Fuso: ${userTimezone})
 Ciclo Temporal Astral: ${temporal.periodOfDay} | Saudação: ${temporal.greeting}
 Intenção Principal Detectada: ${intent.primaryCategory.toUpperCase()} (${intent.summary})
 
