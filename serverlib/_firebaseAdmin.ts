@@ -16,6 +16,7 @@ try {
       });
     }
     firestoreInstance = getFirestore();
+    firestoreInstance.settings({ ignoreUndefinedProperties: true });
     adminAuthInstance = getAuth();
   }
 } catch (e) {

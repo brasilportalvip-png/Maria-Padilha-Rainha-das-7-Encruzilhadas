@@ -121,8 +121,8 @@ export async function debitCredits(params: {
       amount: -amount,
       previousBalance: currentCredits,
       newBalance: finalBalance,
-      referenceId,
-      idempotencyKey,
+      ...(referenceId !== undefined ? { referenceId } : {}),
+      ...(idempotencyKey !== undefined ? { idempotencyKey } : {}),
       description,
       timestamp: new Date().toISOString(),
     };
@@ -131,7 +131,7 @@ export async function debitCredits(params: {
     // 5. Record Persistent Operation Idempotency
     transaction.set(opRef, {
       uid,
-      idempotencyKey,
+      ...(idempotencyKey !== undefined ? { idempotencyKey } : {}),
       ledgerId,
       amount,
       newBalance: finalBalance,
@@ -207,7 +207,7 @@ export async function refundCredits(params: {
       amount,
       previousBalance: current,
       newBalance,
-      referenceId,
+      ...(referenceId !== undefined ? { referenceId } : {}),
       description: `Estorno atômico: ${reason}`,
       timestamp: new Date().toISOString(),
     };
@@ -215,7 +215,7 @@ export async function refundCredits(params: {
 
     transaction.set(refundOpRef, {
       uid,
-      referenceId,
+      ...(referenceId !== undefined ? { referenceId } : {}),
       ledgerId,
       amount,
       newBalance,

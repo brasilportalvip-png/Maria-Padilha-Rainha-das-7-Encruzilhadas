@@ -98,6 +98,9 @@ export const Chat: React.FC = () => {
       const data = await res.json();
 
       if (!res.ok) {
+        if (data.code !== 'OPERATION_IN_PROGRESS') {
+          currentChatIdempotencyKeyRef.current = generateClientUUID();
+        }
         throw new Error(data.error || 'Erro na conexão com o oráculo.');
       }
 

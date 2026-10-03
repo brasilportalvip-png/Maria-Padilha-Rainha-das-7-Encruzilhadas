@@ -158,7 +158,12 @@ export const Readings: React.FC = () => {
       });
 
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Erro na consulta do oráculo.');
+      if (!res.ok) {
+        if (data.code !== 'OPERATION_IN_PROGRESS') {
+          idempotencyKeyRef.current = generateClientUUID();
+        }
+        throw new Error(data.error || 'Erro na consulta do oráculo.');
+      }
 
       // Refresh idempotency key for future new consultations
       idempotencyKeyRef.current = generateClientUUID();

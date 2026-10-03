@@ -79,8 +79,13 @@ export const LoveCompatibility: React.FC = () => {
 
       const data = await res.json();
       if (!res.ok) {
+        if (data.code !== 'OPERATION_IN_PROGRESS') {
+          idempotencyKeyRef.current = generateClientUUID();
+        }
         throw new Error(data.error || 'Erro ao processar sinastria amorosa no servidor sagrado.');
       }
+
+      idempotencyKeyRef.current = generateClientUUID();
 
       if (typeof data.newCreditsBalance === 'number') {
         setUserCredits(data.newCreditsBalance);
