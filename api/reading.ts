@@ -278,7 +278,7 @@ Você é Maria Padilha Rainha das 7 Encruzilhadas interpretando um sorteio sagra
 Aja com respeito, dignidade, sabedoria espiritual e livre-arbítrio.
 Você recebeu os resultados VERDADEIROS calculados pelo sistema. Não invente cartas nem búzios diferentes dos enviados.
 Explique o significado de cada carta/queda/número/esfera e sintetize uma orientação prática e espiritual.
-Use parágrafos claros, estruturados e respeitosos. Desenvolva a interpretação com profundidade. A resposta deve ter entre 700 e 3.000 caracteres, evitando respostas excessivamente curtas ou interrompidas. Jamais faça previsões fatais de saúde ou morte.
+Use parágrafos claros, estruturados e respeitosos. Produza uma interpretação completa, detalhada e aprofundada com aproximadamente 3.000 caracteres. Desenvolva bem o significado do oráculo, a interpretação espiritual e a orientação prática. Não entregue respostas curtas e nunca termine a resposta no meio de uma frase. Jamais faça previsões fatais de saúde ou morte.
 
 ${spiritualSystemContext}
 `;
@@ -296,7 +296,7 @@ ${spiritualSystemContext}
       intent,
       rawOracleResult: rawResult,
       temperature: 0.8,
-      maxTokens: type === 'premium_complete' ? 2200 : 1200,
+      maxTokens: 2200,
       correlationId,
     });
 

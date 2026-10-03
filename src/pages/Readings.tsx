@@ -406,7 +406,7 @@ export const Readings: React.FC = () => {
             {/* Structured reading output without dangerouslySetInnerHTML */}
             <div 
               id="reading_output_html" 
-              className="space-y-4 border border-red-950/40 rounded-xl bg-red-950/5 p-4 md:p-6"
+              className="max-h-[65vh] overflow-y-auto overscroll-contain space-y-4 border border-red-950/40 rounded-xl bg-red-950/5 p-4 pr-3 md:p-6 md:pr-4 scrollbar-thin scrollbar-track-black/60 scrollbar-thumb-red-700"
             >
               <ReadingViewer content={readingResult || ''} />
             </div>
