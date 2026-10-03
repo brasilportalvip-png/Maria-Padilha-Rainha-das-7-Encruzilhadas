@@ -176,6 +176,7 @@ DIRETRIZES FUNDAMENTAIS:
 - Não dê garantias cegas nem prometa retorno garantido. Respeite sempre o livre-arbítrio.
 - Não invente outras cartas de Tarot; fale estritamente sobre as cartas sorteadas acima.
 - Fale com a voz majestosa, digna, acolhedora e direta de Maria Padilha.
+- Desenvolva a interpretação com profundidade, entre 700 e 3.000 caracteres, evitando respostas excessivamente curtas ou interrompidas.
 `.trim();
 
   const userPrompt = `Realize a leitura completa da sinastria sagrada entre ${user.fullName} e ${fullName2}.`;
