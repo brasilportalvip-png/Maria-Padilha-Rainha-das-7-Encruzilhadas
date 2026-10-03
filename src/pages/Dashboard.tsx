@@ -33,7 +33,7 @@ export const Dashboard: React.FC = () => {
         </div>
 
         <h1 className="font-serif text-2xl font-bold text-white md:text-4xl">
-          Saravá, {user.fullName}
+          Bem vindo, {user.fullName}
         </h1>
 
         <p className="mx-auto mt-4 max-w-xl text-sm leading-relaxed text-gray-300">
