@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { parseAndValidateDate, isValidDateString } from '../src/utils/dateNormalizer.js';
 import { calculateAstrology } from '../src/oraculos/astrologyEngine.js';
-import { RegisterRequestSchema } from '../api/validation/schemas.js';
+import { RegisterRequestSchema } from '../serverlib/validation/schemas.js';
 
 describe('Regra dos Dados Natais & Date Normalizer (P0 / Produção)', () => {
   it('deve aceitar datas estritas nos formatos YYYY-MM-DD e DD/MM/AAAA', () => {

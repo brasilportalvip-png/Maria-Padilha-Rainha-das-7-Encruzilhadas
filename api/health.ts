@@ -1,5 +1,5 @@
 import type { Request, Response } from 'express';
-import { isFirebaseAdminActive } from './_firebaseAdmin.js';
+import { isFirebaseAdminActive } from '../serverlib/_firebaseAdmin.js';
 
 export default function handler(req: Request, res: Response) {
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');

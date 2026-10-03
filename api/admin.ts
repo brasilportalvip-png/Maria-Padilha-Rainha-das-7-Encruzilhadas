@@ -1,9 +1,9 @@
 import type { Request, Response } from 'express';
-import { requireAdmin, type AuthenticatedRequest } from './middleware/auth.js';
-import { UpdateCreditsSchema, BlockUserSchema } from './validation/schemas.js';
-import { firestore } from './_firebaseAdmin.js';
-import { getUserCredits } from './services/creditService.js';
-import { logger } from './services/logger.js';
+import { requireAdmin, type AuthenticatedRequest } from '../serverlib/middleware/auth.js';
+import { UpdateCreditsSchema, BlockUserSchema } from '../serverlib/validation/schemas.js';
+import { firestore } from '../serverlib/_firebaseAdmin.js';
+import { getUserCredits } from '../serverlib/services/creditService.js';
+import { logger } from '../serverlib/services/logger.js';
 import type { CreditLedgerEntry } from '../src/types/spiritual.js';
 
 export default async function handler(req: Request, res: Response) {

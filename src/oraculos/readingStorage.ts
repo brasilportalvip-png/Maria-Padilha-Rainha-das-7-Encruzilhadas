@@ -1,4 +1,4 @@
-import { firestore } from '../../api/_firebaseAdmin.js';
+import { firestore } from '../../serverlib/_firebaseAdmin.js';
 import type { OracleReadingRecord } from '../types/spiritual.js';
 
 // Fast in-memory cache strictly for automated Vitest testing (NODE_ENV === 'test')

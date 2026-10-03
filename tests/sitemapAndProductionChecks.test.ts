@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import fs from 'fs';
 import path from 'path';
 import { generateSitemapXml } from '../scripts/generate-sitemap.js';
-import { checkRateLimit } from '../api/services/rateLimiter.js';
+import { checkRateLimit } from '../serverlib/services/rateLimiter.js';
 
 describe('Sitemap, Robots e Proteções de Produção (Requisitos 27, 28, 30)', () => {
   it('generateSitemapXml deve gerar XML válido e incluir estritamente rotas públicas canônicas', () => {

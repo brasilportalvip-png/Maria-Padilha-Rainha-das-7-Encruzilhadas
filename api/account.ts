@@ -1,9 +1,9 @@
 import type { Request, Response } from 'express';
-import { requireAuth, type AuthenticatedRequest } from './middleware/auth.js';
-import { DeleteAccountSchema } from './validation/schemas.js';
-import { firestore, adminAuth } from './_firebaseAdmin.js';
-import { logger } from './services/logger.js';
-import { clearRateLimitForUid } from './services/rateLimiter.js';
+import { requireAuth, type AuthenticatedRequest } from '../serverlib/middleware/auth.js';
+import { DeleteAccountSchema } from '../serverlib/validation/schemas.js';
+import { firestore, adminAuth } from '../serverlib/_firebaseAdmin.js';
+import { logger } from '../serverlib/services/logger.js';
+import { clearRateLimitForUid } from '../serverlib/services/rateLimiter.js';
 
 export default async function handler(req: Request, res: Response) {
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
-import { requireAuth, requireAdmin, verifyUserToken, type AuthenticatedRequest } from '../api/middleware/auth.js';
-import { ChatMessageSchema, CreatePaymentRequestSchema } from '../api/validation/schemas.js';
+import { requireAuth, requireAdmin, verifyUserToken, type AuthenticatedRequest } from '../serverlib/middleware/auth.js';
+import { ChatMessageSchema, CreatePaymentRequestSchema } from '../serverlib/validation/schemas.js';
 
 describe('Server Security & Middleware (Requisitos 4, 5, 45, 75)', () => {
   it('verifyUserToken deve retornar null quando cabeçalho Authorization estiver ausente', async () => {

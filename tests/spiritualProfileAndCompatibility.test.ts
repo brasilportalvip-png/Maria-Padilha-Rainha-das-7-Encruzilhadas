@@ -4,7 +4,7 @@ import {
   getLivingSpiritualHistory,
   recordSpiritualEvent,
   assembleSpiritualAIContext,
-} from '../api/services/spiritualProfileService.js';
+} from '../serverlib/services/spiritualProfileService.js';
 import { calculateLoveSynastry } from '../src/oraculos/loveSynastryEngine.js';
 import { LOVE_COMPATIBILITY_COST } from '../src/config/pricing.js';
 import type { UserProfile } from '../src/types/spiritual.js';

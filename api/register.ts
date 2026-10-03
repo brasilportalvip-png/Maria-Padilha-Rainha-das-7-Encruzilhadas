@@ -1,9 +1,9 @@
 import type { Request, Response } from 'express';
-import { adminAuth, firestore } from './_firebaseAdmin.js';
-import { RegisterRequestSchema } from './validation/schemas.js';
-import { getClientIp } from './middleware/auth.js';
-import { checkRateLimit } from './services/rateLimiter.js';
-import { logger } from './services/logger.js';
+import { adminAuth, firestore } from '../serverlib/_firebaseAdmin.js';
+import { RegisterRequestSchema } from '../serverlib/validation/schemas.js';
+import { getClientIp } from '../serverlib/middleware/auth.js';
+import { checkRateLimit } from '../serverlib/services/rateLimiter.js';
+import { logger } from '../serverlib/services/logger.js';
 import { parseAndValidateDate } from '../src/utils/dateNormalizer.js';
 import type { UserProfile, CreditLedgerEntry } from '../src/types/spiritual.js';
 

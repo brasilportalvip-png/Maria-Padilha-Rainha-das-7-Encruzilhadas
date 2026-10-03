@@ -1,9 +1,9 @@
 import type { Request, Response } from 'express';
-import { requireAuth, type AuthenticatedRequest } from './middleware/auth.js';
-import { ChatMessageSchema } from './validation/schemas.js';
-import { checkRateLimit } from './services/rateLimiter.js';
-import { debitCredits, refundCredits } from './services/creditService.js';
-import { executeGeminiWithFallback } from './services/geminiService.js';
+import { requireAuth, type AuthenticatedRequest } from '../serverlib/middleware/auth.js';
+import { ChatMessageSchema } from '../serverlib/validation/schemas.js';
+import { checkRateLimit } from '../serverlib/services/rateLimiter.js';
+import { debitCredits, refundCredits } from '../serverlib/services/creditService.js';
+import { executeGeminiWithFallback } from '../serverlib/services/geminiService.js';
 import { getTemporalContext } from '../src/oraculos/temporalEngine.js';
 import { classifyIntent } from '../src/oraculos/intentClassifier.js';
 import { analyzeQuestionRepetition } from '../src/oraculos/antiRepetition.js';
@@ -13,8 +13,8 @@ import {
   acquireOperation,
   completeOperation,
   failOperation,
-} from './services/operationService.js';
-import { logger } from './services/logger.js';
+} from '../serverlib/services/operationService.js';
+import { logger } from '../serverlib/services/logger.js';
 import type { NatalData, OracleReadingRecord } from '../src/types/spiritual.js';
 import {
   ORACLE_QUESTION_COST,
@@ -25,7 +25,7 @@ import {
 import {
   assembleSpiritualAIContext,
   recordSpiritualEvent,
-} from './services/spiritualProfileService.js';
+} from '../serverlib/services/spiritualProfileService.js';
 
 export type ChatMessageType = 'CONVERSATION' | 'SUPPORT' | 'ORACLE_QUESTION' | 'ORACLE_FOLLOWUP';
 

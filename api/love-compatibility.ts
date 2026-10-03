@@ -1,14 +1,14 @@
 import type { Request, Response } from 'express';
 import crypto from 'crypto';
-import { requireAuth, type AuthenticatedRequest } from './middleware/auth.js';
-import { debitCredits, refundCredits } from './services/creditService.js';
-import { executeGeminiWithFallback } from './services/geminiService.js';
+import { requireAuth, type AuthenticatedRequest } from '../serverlib/middleware/auth.js';
+import { debitCredits, refundCredits } from '../serverlib/services/creditService.js';
+import { executeGeminiWithFallback } from '../serverlib/services/geminiService.js';
 import { getTemporalContext } from '../src/oraculos/temporalEngine.js';
 import { classifyIntent } from '../src/oraculos/intentClassifier.js';
 import { calculateLoveSynastry, type LoveSynastryReport } from '../src/oraculos/loveSynastryEngine.js';
 import { saveOracleReading, getOracleReadingById, getReadingIdByIdempotency } from '../src/oraculos/readingStorage.js';
-import { checkRateLimit } from './services/rateLimiter.js';
-import { logger } from './services/logger.js';
+import { checkRateLimit } from '../serverlib/services/rateLimiter.js';
+import { logger } from '../serverlib/services/logger.js';
 import { parseAndValidateDate } from '../src/utils/dateNormalizer.js';
 import {
   LOVE_COMPATIBILITY_COST,
@@ -16,12 +16,12 @@ import {
 } from '../src/config/pricing.js';
 import {
   recordSpiritualEvent,
-} from './services/spiritualProfileService.js';
+} from '../serverlib/services/spiritualProfileService.js';
 import {
   acquireOperation,
   completeOperation,
   failOperation,
-} from './services/operationService.js';
+} from '../serverlib/services/operationService.js';
 import type { OracleReadingRecord, NatalData } from '../src/types/spiritual.js';
 import { z } from 'zod';
 

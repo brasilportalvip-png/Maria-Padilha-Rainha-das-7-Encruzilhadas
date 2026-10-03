@@ -1,10 +1,10 @@
 import type { Request, Response } from 'express';
 import { MercadoPagoConfig, Preference } from 'mercadopago';
-import { requireAuth, type AuthenticatedRequest } from './middleware/auth.js';
-import { CreatePaymentRequestSchema } from './validation/schemas.js';
-import { firestore } from './_firebaseAdmin.js';
-import { logger } from './services/logger.js';
-import { checkRateLimit } from './services/rateLimiter.js';
+import { requireAuth, type AuthenticatedRequest } from '../serverlib/middleware/auth.js';
+import { CreatePaymentRequestSchema } from '../serverlib/validation/schemas.js';
+import { firestore } from '../serverlib/_firebaseAdmin.js';
+import { logger } from '../serverlib/services/logger.js';
+import { checkRateLimit } from '../serverlib/services/rateLimiter.js';
 import type { PaymentOrder } from '../src/types/spiritual.js';
 
 export const SERVER_PLANS: Record<string, { id: string; name: string; price: number; credits: number }> = {

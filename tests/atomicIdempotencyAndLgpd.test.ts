@@ -3,20 +3,20 @@ import {
   acquireOperation,
   completeOperation,
   failOperation,
-} from '../api/services/operationService.js';
+} from '../serverlib/services/operationService.js';
 import {
   saveOracleReading,
   getOracleReadingById,
   getReadingIdByIdempotency,
   clearTestReadingStorage,
 } from '../src/oraculos/readingStorage.js';
-import { debitCredits, refundCredits } from '../api/services/creditService.js';
-import { firestore } from '../api/_firebaseAdmin.js';
+import { debitCredits, refundCredits } from '../serverlib/services/creditService.js';
+import { firestore } from '../serverlib/_firebaseAdmin.js';
 import chatHandler from '../api/chat.js';
 import readingHandler from '../api/reading.js';
 import loveCompatibilityHandler from '../api/love-compatibility.js';
 import accountHandler from '../api/account.js';
-import * as geminiService from '../api/services/geminiService.js';
+import * as geminiService from '../serverlib/services/geminiService.js';
 import { calculateAstrology } from '../src/oraculos/astrologyEngine.js';
 import type { OracleReadingRecord } from '../src/types/spiritual.js';
 

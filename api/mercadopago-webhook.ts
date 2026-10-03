@@ -1,8 +1,8 @@
 import type { Request, Response } from 'express';
 import crypto from 'crypto';
-import { firestore } from './_firebaseAdmin.js';
-import { addPurchaseCredits } from './services/creditService.js';
-import { logger } from './services/logger.js';
+import { firestore } from '../serverlib/_firebaseAdmin.js';
+import { addPurchaseCredits } from '../serverlib/services/creditService.js';
+import { logger } from '../serverlib/services/logger.js';
 import type { PaymentOrder } from '../src/types/spiritual.js';
 
 function extractPaymentId(req: Request): string | null {

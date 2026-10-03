@@ -1,8 +1,8 @@
 import type { Request, Response } from 'express';
-import { requireAuth, type AuthenticatedRequest } from './middleware/auth.js';
-import { OracleReadingRequestSchema } from './validation/schemas.js';
-import { debitCredits, refundCredits } from './services/creditService.js';
-import { executeGeminiWithFallback } from './services/geminiService.js';
+import { requireAuth, type AuthenticatedRequest } from '../serverlib/middleware/auth.js';
+import { OracleReadingRequestSchema } from '../serverlib/validation/schemas.js';
+import { debitCredits, refundCredits } from '../serverlib/services/creditService.js';
+import { executeGeminiWithFallback } from '../serverlib/services/geminiService.js';
 import { getTemporalContext } from '../src/oraculos/temporalEngine.js';
 import { classifyIntent } from '../src/oraculos/intentClassifier.js';
 import { drawTarotCards } from '../src/oraculos/tarotEngine.js';
@@ -19,9 +19,9 @@ import {
   acquireOperation,
   completeOperation,
   failOperation,
-} from './services/operationService.js';
-import { checkRateLimit } from './services/rateLimiter.js';
-import { logger } from './services/logger.js';
+} from '../serverlib/services/operationService.js';
+import { checkRateLimit } from '../serverlib/services/rateLimiter.js';
+import { logger } from '../serverlib/services/logger.js';
 import type { OracleReadingRecord, OracleRawResult, NatalData, ParticipantRole } from '../src/types/spiritual.js';
 import {
   READING_CONSULTATION_COST,
@@ -30,7 +30,7 @@ import {
 import {
   assembleSpiritualAIContext,
   recordSpiritualEvent,
-} from './services/spiritualProfileService.js';
+} from '../serverlib/services/spiritualProfileService.js';
 
 export default async function handler(req: Request, res: Response) {
   if (req.method !== 'POST') {

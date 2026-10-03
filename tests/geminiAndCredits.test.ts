@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { debitCredits, refundCredits, getUserCredits } from '../api/services/creditService.js';
-import { MODEL_CHAIN } from '../api/services/geminiService.js';
-import { firestore } from '../api/_firebaseAdmin.js';
+import { debitCredits, refundCredits, getUserCredits } from '../serverlib/services/creditService.js';
+import { MODEL_CHAIN } from '../serverlib/services/geminiService.js';
+import { firestore } from '../serverlib/_firebaseAdmin.js';
 import {
   ORACLE_QUESTION_COST,
   POMBO_GIRA_ADVICE_COST,

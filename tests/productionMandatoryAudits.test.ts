@@ -2,8 +2,8 @@ import { describe, it, expect, vi } from 'vitest';
 import { calculateAstrology } from '../src/oraculos/astrologyEngine.js';
 import { calculateLoveSynastry } from '../src/oraculos/loveSynastryEngine.js';
 import { parseAndValidateDate } from '../src/utils/dateNormalizer.js';
-import { debitCredits, refundCredits } from '../api/services/creditService.js';
-import { firestore } from '../api/_firebaseAdmin.js';
+import { debitCredits, refundCredits } from '../serverlib/services/creditService.js';
+import { firestore } from '../serverlib/_firebaseAdmin.js';
 import registerHandler from '../api/register.js';
 import loveCompatibilityHandler from '../api/love-compatibility.js';
 

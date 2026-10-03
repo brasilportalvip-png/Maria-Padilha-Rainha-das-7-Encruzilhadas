@@ -6,7 +6,7 @@
  *   npx tsx scripts/set-admin-claim.ts <user-email-ou-uid>
  */
 import dotenv from 'dotenv';
-import { adminAuth, firestore } from '../api/_firebaseAdmin.js';
+import { adminAuth, firestore } from '../serverlib/_firebaseAdmin.js';
 
 dotenv.config();
 
