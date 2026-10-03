@@ -60,7 +60,8 @@ export const Readings: React.FC = () => {
 
   const idempotencyKeyRef = useRef<string>(generateClientUUID());
 
-  // If viewing a history item, load it!
+  // If viewing a history item, load it.
+  // Do not clear a newly generated reading when history changes.
   useEffect(() => {
     if (viewId && history.length > 0) {
       const item = history.find(h => h.id === viewId);
@@ -68,9 +69,6 @@ export const Readings: React.FC = () => {
         setReadingResult(item.content);
         setActiveReading(item.type);
       }
-    } else {
-      setReadingResult(null);
-      setActiveReading(null);
     }
   }, [viewId, history]);
 
