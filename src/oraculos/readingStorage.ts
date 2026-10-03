@@ -11,6 +11,9 @@ export async function saveOracleReading(
 ): Promise<OracleReadingRecord> {
   const isTest = process.env.NODE_ENV === 'test' || Boolean(process.env.VITEST);
 
+  // Firestore-safe copy: remove undefined values from nested oracle structures.
+  const safeRecord = JSON.parse(JSON.stringify(record)) as OracleReadingRecord;
+
   if (isTest && idempotencyKey && testIdempotencyCache.has(idempotencyKey)) {
     const existingReadingId = testIdempotencyCache.get(idempotencyKey)!;
     if (testReadingsCache.has(existingReadingId)) {
@@ -51,7 +54,7 @@ export async function saveOracleReading(
           }
         }
 
-        transaction.set(readingRef, record);
+        transaction.set(readingRef, safeRecord);
         transaction.set(idempRef, {
           readingId: record.readingId,
           uid: record.uid,
@@ -62,7 +65,7 @@ export async function saveOracleReading(
         return record;
       });
     } else {
-      await readingRef.set(record);
+      await readingRef.set(safeRecord);
       return record;
     }
   } catch (err: any) {

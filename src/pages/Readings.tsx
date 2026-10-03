@@ -159,10 +159,18 @@ export const Readings: React.FC = () => {
 
       const data = await res.json();
       if (!res.ok) {
+        if (typeof data.newCreditsBalance === 'number') {
+          setUserCredits(data.newCreditsBalance);
+        }
         if (data.code !== 'OPERATION_IN_PROGRESS') {
           idempotencyKeyRef.current = generateClientUUID();
         }
         throw new Error(data.error || 'Erro na consulta do oráculo.');
+      }
+
+      if (!data.reading || typeof data.reading !== 'string' || !data.reading.trim()) {
+        idempotencyKeyRef.current = generateClientUUID();
+        throw new Error('O oráculo não retornou uma leitura. Tente novamente.');
       }
 
       // Refresh idempotency key for future new consultations
