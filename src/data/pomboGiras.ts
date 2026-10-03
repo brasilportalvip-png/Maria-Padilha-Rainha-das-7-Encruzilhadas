@@ -96,30 +96,26 @@ export const POMBO_GIRA_EPITHETS = [
 // Over 300 names are generated programmatically on search or random, or we can pre-generate a massive list of names to search through
 export const generatePomboGiraNames = (): string[] => {
   const names = new Set<string>();
-  
-  // Add major ones first
-  MAJOR_POMBO_GIRAS.forEach(pg => names.add(pg.name));
-  
-  // Generate combinations
+
+  MAJOR_POMBO_GIRAS.forEach((pg) => names.add(pg.name));
+
   for (const first of POMBO_GIRA_FIRST_NAMES) {
     for (const last of POMBO_GIRA_LAST_NAMES) {
       names.add(`${first} ${last}`);
-      if (names.size >= 300) break;
+      if (names.size >= 330) return Array.from(names).slice(0, 330);
     }
-    if (names.size >= 300) break;
   }
-  
-  // Fill up to 330 using epithets to make it extremely diverse
-  let i = 0;
-  while (names.size < 330) {
-    const first = POMBO_GIRA_FIRST_NAMES[i % POMBO_GIRA_FIRST_NAMES.length];
-    const last = POMBO_GIRA_LAST_NAMES[(i * 3) % POMBO_GIRA_LAST_NAMES.length];
-    const epithet = POMBO_GIRA_EPITHETS[(i * 7) % POMBO_GIRA_EPITHETS.length];
-    names.add(`${first} ${last} ${epithet}`);
-    i++;
+
+  for (const first of POMBO_GIRA_FIRST_NAMES) {
+    for (const last of POMBO_GIRA_LAST_NAMES) {
+      for (const epithet of POMBO_GIRA_EPITHETS) {
+        names.add(`${first} ${last} ${epithet}`);
+        if (names.size >= 330) return Array.from(names).slice(0, 330);
+      }
+    }
   }
-  
-  return Array.from(names);
+
+  return Array.from(names).slice(0, 330);
 };
 
 // Generates a fully detailed PomboGira profile on-demand for any of the 300+ names!

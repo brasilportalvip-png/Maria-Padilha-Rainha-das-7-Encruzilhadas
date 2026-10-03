@@ -9,7 +9,8 @@ import {
   HelpCircle,
   LogOut,
   LogIn,
-  User
+  User,
+  ArrowLeft
 } from 'lucide-react';
 import {
   ORACLE_QUESTION_COST,
@@ -207,6 +208,18 @@ export const Chat: React.FC = () => {
     </div>
 
     <div className="flex flex-wrap gap-2 justify-end">
+      <button
+        type="button"
+        onClick={() => navigate('/dashboard')}
+        className="rounded-full border border-yellow-500/50 bg-black/75 px-2 py-2 text-[10px] sm:text-xs font-bold text-yellow-200 backdrop-blur-md"
+        title="Voltar para as opções"
+      >
+        <span className="inline-flex items-center gap-1">
+          <ArrowLeft className="h-4 w-4" />
+          Voltar
+        </span>
+      </button>
+
       <button
         type="button"
         onClick={handleLogout}
