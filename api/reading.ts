@@ -252,17 +252,25 @@ try {
   const newReadingId = `read_${crypto.randomUUID()}`;
 
   // 4. Assemble deep permanent spiritual profile & AI context
-  const spiritualAI = await assembleSpiritualAIContext({
-    user,
-    question: userQuestion,
-    rawOracleResult: rawResult,
-    partnerData: specificName ? {
-      name: specificName,
-      birthDate: specificDate,
-      role: assignedRole,
-      relationshipContext: assignedContext,
-    } : undefined,
-  });
+  // If the extended profile fails, the real oracle result must still be delivered.
+  let spiritualSystemContext = '';
+  try {
+    const spiritualAI = await assembleSpiritualAIContext({
+      user,
+      question: userQuestion,
+      rawOracleResult: rawResult,
+      partnerData: specificName ? {
+        name: specificName,
+        birthDate: specificDate,
+        role: assignedRole,
+        relationshipContext: assignedContext,
+      } : undefined,
+    });
+    spiritualSystemContext = spiritualAI.systemContext;
+  } catch (contextErr) {
+    logger.warn('Spiritual profile/context unavailable; continuing with real oracle result', { error: String(contextErr) });
+    spiritualSystemContext = 'Interprete com profundidade exclusivamente os resultados reais do oráculo fornecidos nesta consulta, respeitando o livre-arbítrio e sem inventar resultados.';
+  }
 
   // 5. Gemini Interpretation of the REAL Oracle Result
   const systemInstruction = `
@@ -272,7 +280,7 @@ Você recebeu os resultados VERDADEIROS calculados pelo sistema. Não invente ca
 Explique o significado de cada carta/queda/número/esfera e sintetize uma orientação prática e espiritual.
 Use parágrafos claros, estruturados e respeitosos. Desenvolva a interpretação com profundidade. A resposta deve ter entre 700 e 3.000 caracteres, evitando respostas excessivamente curtas ou interrompidas. Jamais faça previsões fatais de saúde ou morte.
 
-${spiritualAI.systemContext}
+${spiritualSystemContext}
 `;
 
   let interpretationHtml = '';

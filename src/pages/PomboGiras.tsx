@@ -60,7 +60,17 @@ export const PomboGiras: React.FC = () => {
       });
 
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Erro ao conectar à entidade.');
+      if (!res.ok) {
+        if (data.code !== 'OPERATION_IN_PROGRESS') {
+          idempotencyKeyRef.current = generateClientUUID();
+        }
+        throw new Error(data.error || 'Erro ao conectar à entidade.');
+      }
+
+      if (!data.reply || typeof data.reply !== 'string') {
+        idempotencyKeyRef.current = generateClientUUID();
+        throw new Error('A entidade não retornou uma mensagem. Tente novamente.');
+      }
 
       // Refresh idempotency key on success for subsequent advice
       idempotencyKeyRef.current = generateClientUUID();
