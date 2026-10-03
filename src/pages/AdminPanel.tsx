@@ -30,22 +30,30 @@ export const AdminPanel: React.FC = () => {
 
   const loadData = async () => {
     setIsLoading(true);
+    setStatusMessage(null);
     try {
-      if (activeTab === 'users') {
-        const res = await apiFetch('/api/admin?action=list_users');
-        if (res.ok) {
-          const data = await res.json();
-          setUsers(data.users || []);
-        }
-      } else {
-        const res = await apiFetch('/api/admin?action=list_ledger');
-        if (res.ok) {
-          const data = await res.json();
-          setLedger(data.entries || []);
-        }
+      const url = activeTab === 'users'
+        ? '/api/admin?action=list_users'
+        : '/api/admin?action=list_ledger';
+
+      const res = await apiFetch(url);
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Falha ao carregar os dados administrativos.');
       }
-    } catch (err) {
+
+      if (activeTab === 'users') {
+        setUsers(Array.isArray(data.users) ? data.users : []);
+      } else {
+        setLedger(Array.isArray(data.entries) ? data.entries : []);
+      }
+    } catch (err: any) {
       console.error('Failed to load admin data:', err);
+      setStatusMessage({
+        type: 'error',
+        text: err.message || 'Não foi possível carregar os dados do painel administrativo.',
+      });
     } finally {
       setIsLoading(false);
     }

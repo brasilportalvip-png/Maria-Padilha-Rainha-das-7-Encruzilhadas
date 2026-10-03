@@ -21,7 +21,7 @@ export default async function handler(req: Request, res: Response) {
       const users = snapshot.docs.map((doc) => {
         const d = doc.data();
         return {
-          uid: d.uid,
+          uid: d.uid || doc.id,
           fullName: d.fullName,
           email: d.email,
           birthDate: d.birthDate,
@@ -37,7 +37,13 @@ export default async function handler(req: Request, res: Response) {
 
     if (action === 'list_ledger') {
       const snapshot = await firestore.collection('credit_ledger').limit(50).get();
-      const entries = snapshot.docs.map((doc) => doc.data());
+      const entries = snapshot.docs.map((doc) => {
+        const d = doc.data();
+        return {
+          ...d,
+          id: d.id || doc.id,
+        };
+      });
       return res.status(200).json({ entries });
     }
 

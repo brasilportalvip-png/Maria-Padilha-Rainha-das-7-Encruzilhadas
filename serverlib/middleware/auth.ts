@@ -158,12 +158,13 @@ export async function requireAdmin(req: AuthenticatedRequest, res: Response, nex
   const isAuthed = await requireAuth(req, res);
   if (!isAuthed) return false;
 
-  // Admin access is cryptographically restricted to Firebase Custom Claim (admin: true)
-  const isAdmin = req.hasAdminClaim === true;
+  // Admin autorizado por Custom Claim OU role=admin verificado diretamente no Firestore pelo servidor.
+  // O cliente não pode alterar o campo role pelas regras do Firestore.
+  const isAdmin = req.hasAdminClaim === true || req.user?.role === 'admin';
 
   if (!isAdmin) {
     res.status(403).json({
-      error: 'Acesso restrito. Privilégios administrativos necessários (Custom Claim admin: true).',
+      error: 'Acesso restrito. Privilégios administrativos necessários.',
       code: 'ADMIN_REQUIRED',
       correlationId: req.correlationId,
     });
