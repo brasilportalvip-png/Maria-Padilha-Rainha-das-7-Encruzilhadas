@@ -3,6 +3,7 @@ import { requireAuth, type AuthenticatedRequest } from './middleware/auth.js';
 import { DeleteAccountSchema } from './validation/schemas.js';
 import { firestore, adminAuth } from './_firebaseAdmin.js';
 import { logger } from './services/logger.js';
+import { clearRateLimitForUid } from './services/rateLimiter.js';
 
 export default async function handler(req: Request, res: Response) {
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
@@ -39,16 +40,33 @@ export default async function handler(req: Request, res: Response) {
         };
       });
 
+      let spiritualProfile = null;
+      try {
+        const sDoc = await firestore.collection('spiritual_profiles').doc(user.uid).get();
+        if (sDoc.exists) spiritualProfile = sDoc.data();
+      } catch {
+        // ignore
+      }
+
+      let spiritualHistory = null;
+      try {
+        const hDoc = await firestore.collection('spiritual_history').doc(user.uid).get();
+        if (hDoc.exists) spiritualHistory = hDoc.data();
+      } catch {
+        // ignore
+      }
+
       return res.status(200).json({
         userProfile: {
           fullName: user.fullName,
           email: user.email,
           birthDate: user.birthDate,
-          birthTime: user.birthTime,
-          city: user.city,
+          birthTime: user.birthTime || null,
           credits: user.credits,
           createdAt: user.createdAt,
         },
+        spiritualProfile,
+        spiritualHistory,
         readings,
         creditLedger: ledger,
         diaryEntries: diary,
@@ -65,39 +83,93 @@ export default async function handler(req: Request, res: Response) {
         });
       }
 
-      // Anonymize user record irreversibly
-      await firestore.collection('users').doc(user.uid).set({
-        fullName: '[Conta Excluída pelo Titular - LGPD]',
-        email: `deleted_${user.uid}@anonymized.invalid`,
-        phone: '',
-        birthDate: '',
-        birthTime: '',
-        city: '',
-        credits: 0,
-        isBlocked: true,
-        deletedAt: new Date().toISOString(),
-      }, { merge: true });
-
-      // Anonymize diary entries
+      // 1. Delete personal diary entries
       const diaryDocs = await firestore.collection('diary').where('userId', '==', user.uid).get();
       for (const d of diaryDocs.docs) {
         await d.ref.delete();
       }
 
-      // If Admin SDK exists, delete auth user
+      // 2. Delete all oracle readings and interpretations to purge personal questions and natal data
+      const readingsDocs = await firestore.collection('readings').where('uid', '==', user.uid).get();
+      for (const r of readingsDocs.docs) {
+        await r.ref.delete();
+      }
+
+      // 3. Delete spiritual profiles and living history
+      try {
+        await firestore.collection('spiritual_profiles').doc(user.uid).delete();
+        await firestore.collection('spiritual_history').doc(user.uid).delete();
+      } catch {
+        // ignore
+      }
+
+      // 3b. LGPD: Permanently purge technical idempotency and operation documents carrying user UID
+      try {
+        const idempDocs = await firestore.collection('reading_idempotency').where('uid', '==', user.uid).get();
+        for (const doc of idempDocs.docs) {
+          await doc.ref.delete();
+        }
+      } catch {
+        // ignore
+      }
+
+      try {
+        const creditOpDocs = await firestore.collection('credit_operations').where('uid', '==', user.uid).get();
+        for (const doc of creditOpDocs.docs) {
+          await doc.ref.delete();
+        }
+      } catch {
+        // ignore
+      }
+
+      try {
+        const oracleOpDocs = await firestore.collection('oracle_operations').where('uid', '==', user.uid).get();
+        for (const doc of oracleOpDocs.docs) {
+          await doc.ref.delete();
+        }
+      } catch {
+        // ignore
+      }
+
+      clearRateLimitForUid(user.uid);
+
+      // 4. True anonymization of tax/financial records (Art. 16, I e II da LGPD):
+      // Retain financial ledger entries strictly for tax compliance, but detach the user UID and PII irreversibly.
+      const paymentDocs = await firestore.collection('payment_orders').where('uid', '==', user.uid).get();
+      for (const p of paymentDocs.docs) {
+        await p.ref.set({
+          uid: '[TITULAR_EXCLUIDO_LGPD]',
+          userEmail: '[anonimizado@lgpd.invalid]',
+          anonymizedAt: new Date().toISOString(),
+        }, { merge: true });
+      }
+
+      const ledgerDocs = await firestore.collection('credit_ledger').where('uid', '==', user.uid).get();
+      for (const l of ledgerDocs.docs) {
+        await l.ref.set({
+          uid: '[TITULAR_EXCLUIDO_LGPD]',
+          description: '[Registro Fiscal/Contábil Retido por Lei - Identidade Pessoal Excluída]',
+          metadata: {},
+        }, { merge: true });
+      }
+
+      // 5. Permanently delete user document from firestore
+      await firestore.collection('users').doc(user.uid).delete();
+
+      // 6. Delete authentication credential from Firebase Auth
       if (adminAuth && typeof adminAuth.deleteUser === 'function') {
         try {
           await adminAuth.deleteUser(user.uid);
         } catch (e) {
-          logger.warn('Failed to delete auth user, anonymized in database:', { uid: user.uid });
+          logger.warn('Failed to delete auth user from Firebase Auth:', { uid: user.uid });
         }
       }
 
-      logger.security('Account successfully deleted under LGPD', { uid: user.uid });
+      logger.security('Account and personal data permanently purged under LGPD (tax records detached of identity)', { uid: user.uid });
 
       return res.status(200).json({
         success: true,
-        message: 'Sua conta e seus dados pessoais de perfil e diário foram excluídos com sucesso. Registros contábeis e fiscais foram anonimizados conforme exigido por lei.',
+        message: 'Sua conta, histórico de consultas, diário e dados de identificação foram excluídos permanentemente. Registros fiscais foram desvinculados de sua identidade e anonimizados conforme exigência legal.',
       });
     }
 

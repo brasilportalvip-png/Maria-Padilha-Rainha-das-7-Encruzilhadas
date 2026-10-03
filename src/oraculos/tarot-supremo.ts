@@ -1088,7 +1088,7 @@ const ARCANOS: any[] = [
   sombra: "confusão, ilusão e indecisão.",
   ensinamento: "nem toda possibilidade deve ser escolhida.",
   conselho: "analise a realidade antes de decidir.",
-  alerta: "evite fantasias excessivas.",
+  alerta: "evite idealizações desconectadas da realidade.",
   normal: "Sonhos e possibilidades."
 },
 

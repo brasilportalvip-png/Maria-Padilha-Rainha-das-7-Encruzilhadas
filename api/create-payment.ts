@@ -77,7 +77,11 @@ export default async function handler(req: Request, res: Response) {
         });
       }
     } catch (e) {
-      logger.warn('Failed to query payment idempotency:', e);
+      logger.error('FAIL-CLOSED: Failed to verify payment idempotency in database', e);
+      return res.status(500).json({
+        error: 'Falha temporária ao verificar integridade do pedido. O pagamento foi interrompido com segurança.',
+        code: 'IDEMPOTENCY_CHECK_FAILED',
+      });
     }
   }
 
@@ -111,10 +115,11 @@ export default async function handler(req: Request, res: Response) {
   const accessToken = process.env.MERCADO_PAGO_ACCESS_TOKEN;
   const siteUrl = process.env.PUBLIC_SITE_URL || process.env.APP_BASE_URL || 'http://localhost:3000';
   const isTestEnv = process.env.NODE_ENV === 'test' || Boolean(process.env.VITEST);
+  const isProduction = process.env.VERCEL_ENV === 'production' || process.env.NODE_ENV === 'production';
 
   if (!accessToken || accessToken === 'MY_ACCESS_TOKEN') {
-    // Only permit simulation in explicit test or local environment
-    if (isTestEnv || process.env.ENABLE_MOCK_PAYMENT === 'true') {
+    // REGRA DE SEGURANÇA ABSOLUTA: MOCK É TERMINANTEMENTE PROIBIDO EM PRODUÇÃO
+    if (!isProduction && (isTestEnv || process.env.ENABLE_MOCK_PAYMENT === 'true')) {
       logger.warn('MERCADO_PAGO_ACCESS_TOKEN not configured in test/local mode. Returning sandbox init_point.');
       return res.status(200).json({
         orderId,

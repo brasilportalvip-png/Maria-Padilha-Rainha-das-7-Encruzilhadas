@@ -72,7 +72,7 @@ const SEPHIROT = [
     nome: 'Yesod',
     traducao: 'Fundamento',
     luz: 'sonhos, memória espiritual, intuição, mediunidade e base emocional.',
-    sombra: 'ilusão, medo, fantasia e prisão em lembranças antigas.',
+    sombra: 'ilusão, medo, devaneios e apego a lembranças antigas.',
     missao: 'separar intuição verdadeira de medo emocional.'
   },
   {
@@ -141,7 +141,7 @@ function selecionarCorrecao(sephirah: any, tema: string): string {
   }
 
   if (tema === 'espiritualidade') {
-    return `Na espiritualidade, a correção passa por fortalecer fé, disciplina e escuta dos sinais sem fantasia.`;
+    return `Na espiritualidade, a correção passa por fortalecer fé, disciplina e escuta lúcida dos sinais sem ilusões.`;
   }
 
   return `A correção principal passa por ${sephirah.missao}`;

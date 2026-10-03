@@ -27,26 +27,15 @@ export const OracleReadingRequestSchema = z.object({
   userData: z.object({
     fullName: z.string().min(2).max(150),
     birthDate: z.string().regex(dateRegex, 'Data de nascimento inválida (use AAAA-MM-DD ou DD/MM/AAAA)'),
-    birthTime: z.string().regex(timeRegex, 'Horário inválido (use HH:mm)').optional().or(z.literal('')),
-    city: z.string().max(100).optional().default(''),
+    birthTime: z.string().regex(timeRegex, 'Horário inválido (use HH:mm)').optional().or(z.literal('')).nullable(),
     timezone: z.string().max(50).optional().default('America/Sao_Paulo'),
   }).optional(),
   specificName: z.string().max(150).optional(),
   specificDate: z.string().regex(dateRegex, 'Data de nascimento da pessoa inválida').optional().or(z.literal('')),
-  participantRelation: z.enum([
-    'não informado',
-    'amor',
-    'ex',
-    'cônjuge',
-    'família',
-    'amizade',
-    'sociedade',
-    'trabalho',
-    'chefe',
-    'funcionário',
-    'cliente',
-    'outro'
-  ]).optional(),
+  specificTime: z.string().regex(timeRegex, 'Horário da pessoa inválido (use HH:mm)').optional().or(z.literal('')).nullable(),
+  participantRelation: z.string().max(100).optional(),
+  relationshipContext: z.string().max(100).optional(),
+  participantRole: z.string().max(100).optional(),
   idempotencyKey: z.string().max(100).optional(),
   readingId: z.string().max(100).optional(),
 });
@@ -54,25 +43,23 @@ export const OracleReadingRequestSchema = z.object({
 export const RegisterRequestSchema = z.object({
   fullName: z.string().min(2, 'Nome muito curto').max(150),
   email: z.string().email('E-mail inválido').max(150),
-  phone: z.string().min(8, 'Telefone inválido').max(25),
+  phone: z.string().min(8, 'Telefone inválido').max(25).optional().or(z.literal('')),
   birthDate: z.string().regex(dateRegex, 'Data de nascimento inválida (use AAAA-MM-DD ou DD/MM/AAAA)'),
-  birthTime: z.string().regex(timeRegex, 'Horário inválido (use HH:mm)').optional().or(z.literal('')),
-  city: z.string().min(2, 'Cidade obrigatória').max(100),
-  password: z.string().min(6, 'Senha deve ter no mínimo 6 caracteres').max(100),
+  birthTime: z.string().regex(timeRegex, 'Horário inválido (use HH:mm)').optional().or(z.literal('')).nullable(),
+  password: z.string().min(8, 'Senha deve ter no mínimo 8 caracteres').max(100),
   timezone: z.string().max(50).optional().default('America/Sao_Paulo'),
   deviceId: z.string().max(150).optional(),
 });
 
 export const UpdateNatalSchema = z.object({
   birthDate: z.string().regex(dateRegex, 'Data de nascimento inválida'),
-  birthTime: z.string().regex(timeRegex, 'Horário inválido (use HH:mm)').optional().or(z.literal('')),
-  city: z.string().min(2, 'Cidade inválida').max(100),
+  birthTime: z.string().regex(timeRegex, 'Horário inválido (use HH:mm)').optional().or(z.literal('')).nullable(),
   timezone: z.string().max(50).optional().default('America/Sao_Paulo'),
 });
 
 export const CreatePaymentRequestSchema = z.object({
   planId: z.enum(['prata', 'ouro', 'diamante']),
-  idempotencyKey: z.string().max(100).optional(),
+  idempotencyKey: z.string().min(1, 'idempotencyKey é obrigatória para criação de pagamento').max(100),
 });
 
 export const UpdateCreditsSchema = z.object({

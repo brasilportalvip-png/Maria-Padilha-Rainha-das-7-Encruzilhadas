@@ -7,26 +7,50 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
-    // Users Collection
+    // Users Collection (Created strictly via /api/register with Firebase Admin)
     match /users/{userId} {
       // User can read their own profile
       allow read: if request.auth != null && request.auth.uid == userId;
 
-      // User profile can only be created by auth user matching their own UID,
-      // but cannot set credits or role directly from client
-      allow create: if request.auth != null && request.auth.uid == userId
-                    && (!request.resource.data.keys().hasAny(['credits', 'role', 'isBlocked'])
-                        || request.resource.data.credits == 0);
+      // CLIENT-SIDE CREATION IS STRICTLY FORBIDDEN to eliminate privilege escalation
+      // User accounts must be created authoritatively via /api/register
+      allow create: if false;
 
-      // Updates from client cannot modify sensitive fields (credits, role, isBlocked)
+      // Updates from client cannot modify sensitive fields (credits, role, isBlocked, etc.)
       allow update: if request.auth != null && request.auth.uid == userId
                     && !request.resource.data.diff(resource.data).affectedKeys()
-                        .hasAny(['credits', 'role', 'isAdmin', 'isBlocked', 'antiFraudScore']);
+                        .hasAny([
+                          'credits',
+                          'role',
+                          'isAdmin',
+                          'isBlocked',
+                          'antiFraudScore',
+                          'mfaEnabled',
+                          'deviceFingerprint',
+                          'promotionalCreditsBlocked',
+                          'fraudReasons',
+                          'lastPlanId',
+                          'fullName',
+                          'birthDate',
+                          'birthTime'
+                        ]);
 
-      allow delete: if false; // Deletion handled server-side under LGPD
+      allow delete: if false; // Deletion handled server-side under LGPD via /api/account
     }
 
-    // Readings Collection
+    // Permanent Spiritual Profiles (Owner read-only, write server-only)
+    match /spiritual_profiles/{userId} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow write: if false;
+    }
+
+    // Living Spiritual History (Owner read-only, write server-only)
+    match /spiritual_history/{userId} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow write: if false;
+    }
+
+    // Readings Collection (Server Authoritative - Client CANNOT WRITE)
     match /readings/{readingId} {
       allow read: if request.auth != null && resource.data.uid == request.auth.uid;
       allow write: if false; // Only server can write immutable readings
@@ -44,6 +68,11 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // Credit Operations / Idempotency records (Server only)
+    match /credit_operations/{opId} {
+      allow read, write: if false;
+    }
+
     // Diary Entries (Private to owner)
     match /diary/{entryId} {
       allow read, delete: if request.auth != null && resource.data.userId == request.auth.uid;
@@ -54,6 +83,11 @@ service cloud.firestore {
 
     // Security Logs (Admin / Server only)
     match /security_logs/{logId} {
+      allow read, write: if false;
+    }
+
+    // Distributed Rate Limits (Server only)
+    match /rate_limits/{bucketId} {
       allow read, write: if false;
     }
   }

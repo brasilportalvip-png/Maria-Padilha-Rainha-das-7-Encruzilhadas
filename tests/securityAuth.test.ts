@@ -55,4 +55,53 @@ describe('Server Security & Middleware (Requisitos 4, 5, 45, 75)', () => {
     const result = CreatePaymentRequestSchema.safeParse({ planId: 'plano_inexistente' });
     expect(result.success).toBe(false);
   });
+
+  it('requireAdmin deve rejeitar usuário cujo documento no banco diz role:admin mas o token NÃO tem custom claim admin:true', async () => {
+    const req = {
+      headers: { authorization: 'Bearer test_token_impersonator_user' },
+      socket: { remoteAddress: '127.0.0.1' },
+    } as unknown as AuthenticatedRequest;
+
+    const jsonMock = vi.fn();
+    const statusMock = vi.fn().mockReturnValue({ json: jsonMock });
+    const res = { status: statusMock } as any;
+
+    const result = await requireAdmin(req, res);
+    expect(result).toBe(false);
+    expect(statusMock).toHaveBeenCalledWith(403);
+    expect(jsonMock).toHaveBeenCalledWith(expect.objectContaining({ code: 'ADMIN_REQUIRED' }));
+  });
+
+  it('requireAdmin deve autorizar com sucesso quando o token possui custom claim admin:true legítima', async () => {
+    const req = {
+      headers: { authorization: 'Bearer test_token_admin_super' },
+      socket: { remoteAddress: '127.0.0.1' },
+    } as unknown as AuthenticatedRequest;
+
+    const jsonMock = vi.fn();
+    const statusMock = vi.fn().mockReturnValue({ json: jsonMock });
+    const res = { status: statusMock } as any;
+
+    const result = await requireAdmin(req, res);
+    expect(result).toBe(true);
+    expect(req.hasAdminClaim).toBe(true);
+  });
+
+  it('sanitização de impressão deve neutralizar scripts maliciosos e tags executáveis', () => {
+    const maliciousInput = '<script>alert("xss")</script><img src="x" onerror="stealCookie()"><b>Texto Legítimo</b>';
+    
+    // Test the exact sanitizer regex used in handlePrint
+    const sanitized = maliciousInput
+      .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+      .replace(/<iframe\b[^<]*(?:(?!<\/iframe>)<[^<]*)*<\/iframe>/gi, '')
+      .replace(/<object\b[^<]*(?:(?!<\/object>)<[^<]*)*<\/object>/gi, '')
+      .replace(/<embed\b[^<]*(?:(?!<\/embed>)<[^<]*)*<\/embed>/gi, '')
+      .replace(/\son\w+\s*=\s*(["']).*?\1/gi, '')
+      .replace(/\son\w+\s*=\s*[^\s>]+/gi, '')
+      .replace(/javascript:/gi, 'blocked:');
+
+    expect(sanitized).not.toContain('<script>');
+    expect(sanitized).not.toContain('onerror=');
+    expect(sanitized).toContain('<b>Texto Legítimo</b>');
+  });
 });

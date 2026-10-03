@@ -46,7 +46,7 @@ function AppContent() {
   const isChat = location.pathname === '/chat';
 
   return (
-    <div className="relative min-h-screen font-sans antialiased text-white selection:bg-red-800 selection:text-white flex flex-col justify-between">
+    <div className="relative min-h-screen font-sans antialiased text-white selection:bg-red-800 selection:text-white flex flex-col justify-between overflow-x-hidden">
       <BackgroundEffects />
 
       {!isChat && <Header />}
@@ -155,7 +155,7 @@ function AppContent() {
                 Reino de Maria Padilha Rainha das 7 Encruzilhadas
               </span>
               <p className="text-[11px] text-gray-400 mt-1 max-w-md">
-                Orientação espiritual, simbólica e interpretativa. Respeito irrestrito a todas as crenças e ao livre-arbítrio.
+                Orientação espiritual e interpretativa. Respeito irrestrito a todas as crenças e ao livre-arbítrio.
               </p>
             </div>
 

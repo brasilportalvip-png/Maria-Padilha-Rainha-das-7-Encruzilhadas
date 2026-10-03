@@ -1,10 +1,11 @@
 import crypto from 'crypto';
 import { firestore } from '../_firebaseAdmin.js';
-import { calculateNumerology } from '../../src/oraculos/numerologyEngine.js';
+import { calculateNumerology, calculatePersonalYear } from '../../src/oraculos/numerologyEngine.js';
 import { calculateCabala } from '../../src/oraculos/cabalaEngine.js';
 import { calculateAstrology } from '../../src/oraculos/astrologyEngine.js';
 import { getTemporalContext } from '../../src/oraculos/temporalEngine.js';
 import { classifyIntent } from '../../src/oraculos/intentClassifier.js';
+import { parseAndValidateDate } from '../../src/utils/dateNormalizer.js';
 import { logger } from './logger.js';
 import type {
   UserProfile,
@@ -17,32 +18,28 @@ import type {
 const testSpiritualProfiles = new Map<string, PermanentSpiritualProfile>();
 const testSpiritualHistories = new Map<string, LivingSpiritualHistory>();
 
-function getRulingPlanet(sunSign: string): string {
-  const signRulers: Record<string, string> = {
-    'Áries': 'Marte',
-    'Touro': 'Vênus',
-    'Gêmeos': 'Mercúrio',
-    'Câncer': 'Lua',
-    'Leão': 'Sol',
-    'Virgem': 'Mercúrio',
-    'Libra': 'Vênus',
-    'Escorpião': 'Marte',
-    'Sagitário': 'Júpiter',
-    'Capricórnio': 'Saturno',
-    'Aquário': 'Saturno',
-    'Peixes': 'Júpiter',
-  };
-
-  return signRulers[sunSign] || 'Sol';
-}
-
+/**
+ * Generates the authentic Natal Signature.
+ * STRICT REGISTRATION: depends EXCLUSIVELY on:
+ * - fullName (normalized)
+ * - birthDate (normalized ISO YYYY-MM-DD)
+ * - birthTime (if known; empty if unknown)
+ * NEVER includes city, current timezone or current date.
+ */
 export function generateNatalSignature(natal: {
   fullName: string;
   birthDate: string;
-  birthTime?: string;
-  city?: string;
+  birthTime?: string | null;
 }): string {
-  const norm = `${(natal.fullName || '').trim().toLowerCase()}|${(natal.birthDate || '').trim()}|${(natal.birthTime || '').trim()}|${(natal.city || '').trim().toLowerCase()}`;
+  let iso = (natal.birthDate || '').trim();
+  try {
+    const validated = parseAndValidateDate(natal.birthDate);
+    iso = validated.isoDate;
+  } catch {
+    // fallback if unparseable
+  }
+
+  const norm = `${(natal.fullName || '').trim().toLowerCase()}|${iso}|${(natal.birthTime || '').trim()}`;
   return crypto.createHash('sha256').update(norm).digest('hex');
 }
 
@@ -96,21 +93,22 @@ function deriveArchetypesAndKarmicPatterns(
     `Aprender a discernir entre intuição genuína e projeções da carência afetiva.`,
   ];
 
+  const hourRef = astrology.planetaryHourRuler || 'seu Sol regente';
   const reincarnationThemes = [
-    `Resgate de compromissos kármicos assumidos sob a égide de ${getRulingPlanet(astrology.sunSign)}.`,
+    `Resgate de compromissos kármicos assumidos sob a vibração de ${hourRef}.`,
     `Transformação de antigas mágoas em autoridade e liderança espiritual compassiva.`,
     `Alinhamento das escolhas materiais com o propósito primordial da alma.`,
   ];
 
   const personalityPatterns = [
-    `Inteligência perceptiva aguçada sob o regente ${getRulingPlanet(astrology.sunSign)}.`,
+    `Inteligência perceptiva aguçada sob o signo solar ${astrology.sunSign} (${astrology.element}).`,
     `Sensibilidade às vibrações do ambiente e forte ligação com a ancestralidade.`,
     `Resistência perseverante diante de obstáculos que desanimam pessoas comuns.`,
   ];
 
   const relationshipPatterns = [
     relationshipDynamic,
-    `Necessidade de transparência radical na comunicação do casal.`,
+    `Necessidade de transparência radical na comunicação dos relacionamentos.`,
     `Vulnerabilidade seletiva: demora para entregar o coração, mas quando entrega é por inteiro.`,
   ];
 
@@ -123,7 +121,7 @@ function deriveArchetypesAndKarmicPatterns(
   const spiritualChallenges = [
     `Não carregar o fardo alheio como se fosse dever exclusivo seu.`,
     `Moderar o julgamento severo quando as expectativas não são atendidas.`,
-    `Silenciar o ruído mental para escutar os sussurros de Maria Padilha.`,
+    `Silenciar o ruído mental para escutar os conselhos sagrados de Maria Padilha.`,
   ];
 
   return {
@@ -150,8 +148,7 @@ export async function getOrCreateSpiritualProfile(user: UserProfile): Promise<Pe
   const currentSignature = generateNatalSignature({
     fullName: user.fullName,
     birthDate: user.birthDate,
-    birthTime: user.birthTime,
-    city: user.city,
+    birthTime: user.birthTime || null,
   });
 
   const isTestEnv = process.env.NODE_ENV === 'test' || Boolean(process.env.VITEST);
@@ -184,11 +181,8 @@ export async function getOrCreateSpiritualProfile(user: UserProfile): Promise<Pe
   // Natal data has changed or first calculation: Deterministic recalculation
   const numerology = calculateNumerology(user.fullName, user.birthDate);
   const cabala = calculateCabala(user.birthDate);
-  const astrology = calculateAstrology(
-    user.birthDate,
-    user.birthTime,
-    user.timezone || 'America/Sao_Paulo'
-  );
+  // CRITICAL FIX: calculateAstrology receives birthDate, and birthTime ONLY if provided (NEVER city!)
+  const astrology = calculateAstrology(user.birthDate, user.birthTime || undefined);
   const derived = deriveArchetypesAndKarmicPatterns(numerology, cabala, astrology);
 
   // Check if there was an earlier version to bump
@@ -206,6 +200,8 @@ export async function getOrCreateSpiritualProfile(user: UserProfile): Promise<Pe
     }
   }
 
+  const personalYearCalculated = numerology.personalYear || calculatePersonalYear(user.birthDate);
+
   const newProfile: PermanentSpiritualProfile = {
     uid: user.uid,
     natalProfileVersion: previousVersion + 1,
@@ -215,7 +211,7 @@ export async function getOrCreateSpiritualProfile(user: UserProfile): Promise<Pe
       expression: numerology.expressionNumber,
       soulUrge: numerology.soulUrgeNumber,
       karmicLessons: numerology.karmicLessonNumber ? [numerology.karmicLessonNumber] : [],
-      personalYear: (numerology as any).personalYear || 1,
+      personalYear: personalYearCalculated,
       summary: numerology.summary,
     },
     cabala: {
@@ -231,7 +227,8 @@ export async function getOrCreateSpiritualProfile(user: UserProfile): Promise<Pe
     astrology: {
       sunSign: astrology.sunSign,
       element: astrology.element,
-      rulingPlanet: getRulingPlanet(astrology.sunSign),
+      rulingPlanet: astrology.planetaryHourRuler,
+      natalMoonPhase: astrology.lunarPhase,
       lunarPhase: astrology.lunarPhase,
       planetaryHour: astrology.planetaryHourRuler,
       astrologicalGuidance: astrology.cosmicAdvice,
@@ -242,8 +239,8 @@ export async function getOrCreateSpiritualProfile(user: UserProfile): Promise<Pe
       relationshipDynamic: derived.relationshipDynamic,
     },
     spiritualCycles: {
-      personalYear: (numerology as any).personalYear || 1,
-      cycleTheme: `Ano Pessoal ${(numerology as any).personalYear || 1} regido pela energia de ${getRulingPlanet(astrology.sunSign)}`,
+      personalYear: personalYearCalculated,
+      cycleTheme: `Ano Pessoal ${personalYearCalculated} regido pela essência cósmica`,
       spiritualPhase: `Ciclo de ${cabala.sephirahName}`,
     },
     archetypes: {
@@ -261,7 +258,7 @@ export async function getOrCreateSpiritualProfile(user: UserProfile): Promise<Pe
     methodVersions: {
       numerology: 'pythagorean-v2',
       cabala: 'sephiroth-72angels-v2',
-      astrology: 'tropical-placidus-v2',
+      astrology: 'astrologia-solar-lunar-caldaica-v1',
       archetypes: 'pombogira-guardia-v2',
     },
   };
@@ -274,7 +271,7 @@ export async function getOrCreateSpiritualProfile(user: UserProfile): Promise<Pe
     try {
       await firestore.collection('spiritual_profiles').doc(user.uid).set(newProfile);
     } catch (err) {
-      logger.error('Failed to save spiritual profile to Firestore', err);
+      logger.warn('Failed to write spiritual_profiles to firestore:', err);
     }
   }
 
@@ -282,7 +279,7 @@ export async function getOrCreateSpiritualProfile(user: UserProfile): Promise<Pe
 }
 
 /**
- * Retrieves living spiritual history (recurring themes, past readings, reported life shifts)
+ * Retrieves living spiritual history (events, themes, readings) without polluting permanent natal profile
  */
 export async function getLivingSpiritualHistory(uid: string): Promise<LivingSpiritualHistory> {
   const isTestEnv = process.env.NODE_ENV === 'test' || Boolean(process.env.VITEST);
@@ -304,17 +301,13 @@ export async function getLivingSpiritualHistory(uid: string): Promise<LivingSpir
 
   if (firestore) {
     try {
-      const doc = await firestore.collection('spiritual_history').doc(uid).get();
-      if (doc.exists) {
-        history = { ...history, ...(doc.data() as LivingSpiritualHistory) };
+      const snap = await firestore.collection('spiritual_history').doc(uid).get();
+      if (snap.exists) {
+        history = snap.data() as LivingSpiritualHistory;
       }
     } catch {
       // ignore
     }
-  }
-
-  if (isTestEnv) {
-    testSpiritualHistories.set(uid, history);
   }
 
   return history;
@@ -322,6 +315,7 @@ export async function getLivingSpiritualHistory(uid: string): Promise<LivingSpir
 
 /**
  * Records a spiritual query / reading event into living spiritual history
+ * REGRA: Fallback de relationship DEVE SER 'outro' (NUNCA amor sem evidência explícita!)
  */
 export async function recordSpiritualEvent(params: {
   uid: string;
@@ -340,11 +334,22 @@ export async function recordSpiritualEvent(params: {
   }
 
   if (partnerName) {
-    const existing = history.importantRelations.find(r => r.name.toLowerCase() === partnerName.toLowerCase());
-    if (!existing) {
+    const existingIndex = history.importantRelations.findIndex(
+      (r) => r.name.toLowerCase() === partnerName.toLowerCase()
+    );
+
+    const safeRelation = relationType && relationType.trim() !== '' ? relationType.trim() : 'outro';
+
+    if (existingIndex >= 0) {
+      // Update relationship role if a more specific one is provided
+      if (relationType && relationType !== 'outro') {
+        history.importantRelations[existingIndex].relationship = safeRelation;
+        history.importantRelations[existingIndex].updatedAt = new Date().toISOString();
+      }
+    } else {
       history.importantRelations.push({
         name: partnerName,
-        relationship: relationType || 'parceiro_amoroso',
+        relationship: safeRelation,
         updatedAt: new Date().toISOString(),
       });
     }
@@ -378,7 +383,7 @@ export async function recordSpiritualEvent(params: {
 
 /**
  * Builds the comprehensive spiritual AI prompt context:
- * 1. Consulente natal profile
+ * 1. Consulente natal profile (Nome Completo de Solteiro, Data, Hora se souber)
  * 2. Permanent spiritual profile
  * 3. Living spiritual history
  * 4. Current date, time, timezone, temporal cycle
@@ -391,7 +396,7 @@ export async function assembleSpiritualAIContext(params: {
   user: UserProfile;
   question: string;
   rawOracleResult?: any;
-  partnerData?: { name: string; birthDate?: string; role?: string };
+  partnerData?: { name: string; birthDate?: string; birthTime?: string | null; role?: string; relationshipContext?: string };
 }): Promise<{
   systemContext: string;
   permanentProfile: PermanentSpiritualProfile;
@@ -412,19 +417,20 @@ export async function assembleSpiritualAIContext(params: {
       ? calculateNumerology(partnerData.name, partnerData.birthDate)
       : null;
     const pAstrology = partnerData.birthDate
-      ? calculateAstrology(partnerData.birthDate, '')
+      ? calculateAstrology(partnerData.birthDate, partnerData.birthTime || undefined)
       : null;
     const pCabala = partnerData.birthDate
       ? calculateCabala(partnerData.birthDate)
       : null;
 
     partnerContext = `
---- DADOS E PERFIL ESPIRITUAL DA PESSOA ENVOLVIDA ---
-Nome: ${partnerData.name}
-${partnerData.birthDate ? `Nascimento: ${partnerData.birthDate}` : 'Nascimento não informado (análise por vibração onomástica)'}
-Papel na vida do consulente: ${partnerData.role || 'parceiro_amoroso'}
+--- DADOS E PERFIL ESPIRITUAL DA PESSOA ENVOLVIDA (PARTICIPANTE DA CONSULTA) ---
+Nome Completo de Solteiro: ${partnerData.name}
+${partnerData.birthDate ? `Data de Nascimento: ${partnerData.birthDate}` : 'Data de nascimento não informada (análise por vibração onomástica)'}
+Hora de Nascimento: ${partnerData.birthTime ? partnerData.birthTime : 'Não informada (a ausência da hora é legítima)'}
+Papel / Contexto da Relação: ${partnerData.role || partnerData.relationshipContext || 'outro'}
 ${pNumerology ? `Caminho de Vida (Destino): ${pNumerology.lifePathNumber} | Expressão: ${pNumerology.expressionNumber}` : ''}
-${pAstrology ? `Signo Solar: ${pAstrology.sunSign} | Elemento: ${pAstrology.element} | Regente: ${getRulingPlanet(pAstrology.sunSign)}` : ''}
+${pAstrology ? `Signo Solar: ${pAstrology.sunSign} | Elemento: ${pAstrology.element} | Hora Planetária: ${pAstrology.planetaryHourRuler ? pAstrology.planetaryHourRuler : 'Não informada'}` : ''}
 ${pCabala ? `Sefira Regente: ${pCabala.sephirahName} | Arcanjo: ${pCabala.rulingArchangel}` : ''}
 `;
   }
@@ -433,7 +439,7 @@ ${pCabala ? `Sefira Regente: ${pCabala.sephirahName} | Arcanjo: ${pCabala.ruling
   if (rawOracleResult) {
     if (rawOracleResult.tarotSpread) {
       oracleDrawContext = `
---- RESULTADO DO SORTEIO SAGRADO DO TAROT (CARTAS REAIS) ---
+--- SORTEIO DIGITAL EFETIVAMENTE EXECUTADO DO TAROT (CARTAS REAIS) ---
 ${rawOracleResult.tarotSpread
   .map(
     (pos: any, idx: number) =>
@@ -443,7 +449,7 @@ ${rawOracleResult.tarotSpread
 `;
     } else if (rawOracleResult.buzios) {
       oracleDrawContext = `
---- RESULTADO DO JOGO DE BÚZIOS (CAÍDA REAL) ---
+--- SORTEIO DIGITAL EFETIVAMENTE EXECUTADO DOS BÚZIOS (CAÍDA REAL) ---
 Odù Regente Revelado: ${rawOracleResult.buzios.oduName}
 Conchas Abertas: ${rawOracleResult.buzios.openCount} / Fechadas: ${rawOracleResult.buzios.closedCount}
 Energia do Odù: ${rawOracleResult.buzios.oduEnergy}
@@ -453,18 +459,23 @@ Sombra / Alerta Espiritual: ${rawOracleResult.buzios.oduShadow}
     }
   }
 
+  const birthTimeText = user.birthTime && user.birthTime.trim() !== ''
+    ? user.birthTime
+    : 'Não informada (a ausência da hora é legítima; não estime nem invente horários)';
+
   const systemContext = `
 === CONTEXTO ESPIRITUAL PROFUNDO DO CONSULENTE ===
-Nome: ${user.fullName}
-Nascimento: ${user.birthDate}${user.birthTime ? ` às ${user.birthTime}` : ''} (${user.city || 'Brasil'})
-Data e Hora da Consulta: ${temporal.referenceIso} (${temporal.userDayOfWeek}, ${temporal.userFormattedTime} — Fuso: ${userTimezone})
+Nome Completo de Solteiro: ${user.fullName}
+Data de Nascimento: ${user.birthDate}
+Hora de Nascimento: ${birthTimeText}
+Data e Hora da Consulta (Servidor): ${temporal.referenceIso} (${temporal.userDayOfWeek}, ${temporal.userFormattedTime} — Fuso: ${userTimezone})
 Ciclo Temporal Astral: ${temporal.periodOfDay} | Saudação: ${temporal.greeting}
 Intenção Principal Detectada: ${intent.primaryCategory.toUpperCase()} (${intent.summary})
 
 --- PERFIL ESPIRITUAL PERMANENTE (VERSÃO ${permanentProfile.natalProfileVersion}) ---
-- Numerologia: Caminho ${permanentProfile.numerology.lifePath}, Expressão ${permanentProfile.numerology.expression}, Alma ${permanentProfile.numerology.soulUrge}, Ano Pessoal ${permanentProfile.numerology.personalYear}
+- Numerologia: Caminho ${permanentProfile.numerology.lifePath}, Expressão ${permanentProfile.numerology.expression}, Alma ${permanentProfile.numerology.soulUrge}, Ano Pessoal Atual ${permanentProfile.numerology.personalYear}
 - Cabala: Sefira ${permanentProfile.cabala.sephirahName}, Arcanjo ${permanentProfile.cabala.rulingArchangel}, Anjo ${permanentProfile.cabala.guardianAngelName} (${permanentProfile.cabala.guardianAngelChoir})
-- Astrologia: Signo ${permanentProfile.astrology.sunSign} (Elemento ${permanentProfile.astrology.element}), Regente ${permanentProfile.astrology.rulingPlanet}, Fase Lunar Atual ${permanentProfile.astrology.lunarPhase}
+- Astrologia: Signo Solar ${permanentProfile.astrology.sunSign} (Elemento ${permanentProfile.astrology.element}), Hora Planetária ${permanentProfile.astrology.planetaryHour || 'Não informada'}, Fase Lunar Natal ${permanentProfile.astrology.natalMoonPhase}
 - Afinidade Espiritual: ${permanentProfile.archetypes.pomboGiraAffinity}
 - Arquétipo da Alma: ${permanentProfile.archetypes.primaryArchetype}
 - Arquétipo Sombra a Vigiar: ${permanentProfile.archetypes.shadowArchetype}
@@ -482,6 +493,7 @@ ${
 DIRETRIZ DE CONDUTA PARA MARIA PADILHA:
 - Você tem acesso a todo este mapa espiritual, mas NÃO deve despejar os dados brutos como um relatório mecânico ou lista de tópicos.
 - Selecione e teça organicamente os pontos que iluminam a pergunta atual do consulente.
+- Respeite as cartas e oráculos sagrados acima como verdades já sorteadas e imutáveis.
 - Fale com a voz, presença, dignidade e respeito sagrado de Maria Padilha.
 `;
 

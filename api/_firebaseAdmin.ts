@@ -1,5 +1,5 @@
 import { initializeApp, cert, getApps } from 'firebase-admin/app';
-import { getFirestore } from 'firebase-admin/firestore';
+import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { getAuth } from 'firebase-admin/auth';
 
 let firestoreInstance: any = null;
@@ -55,6 +55,10 @@ const testMockFirestore = {
             store.set(id, { ...current, ...data });
             return { writeTime: new Date() };
           },
+          delete: async () => {
+            store.delete(id);
+            return { writeTime: new Date() };
+          },
         };
       },
       add: async (data: any) => {
@@ -62,18 +66,39 @@ const testMockFirestore = {
         store.set(id, data);
         return { id };
       },
-      where: () => ({
-        where: () => ({
-          limit: () => ({
-            get: async () => ({ empty: true, docs: [] }),
+      where: (field?: string, op?: string, val?: any) => {
+        const filter = () => {
+          const results: any[] = [];
+          for (const [id, item] of store.entries()) {
+            if (!field || (op === '==' && item && item[field] === val)) {
+              results.push({
+                id,
+                ref: {
+                  id,
+                  delete: async () => store.delete(id),
+                  set: async (d: any, opt?: any) => {
+                    const current = opt?.merge ? (store.get(id) || {}) : {};
+                    store.set(id, { ...current, ...d });
+                  },
+                },
+                data: () => item,
+              });
+            }
+          }
+          return { empty: results.length === 0, docs: results };
+        };
+
+        return {
+          where: () => ({
+            limit: () => ({ get: async () => filter() }),
+            get: async () => filter(),
           }),
-          get: async () => ({ empty: true, docs: [] }),
-        }),
-        limit: () => ({
-          get: async () => ({ empty: true, docs: [] }),
-        }),
-        get: async () => ({ empty: true, docs: [] }),
-      }),
+          limit: () => ({
+            get: async () => filter(),
+          }),
+          get: async () => filter(),
+        };
+      },
     };
   },
   runTransaction: async (cb: any) => {
@@ -81,6 +106,7 @@ const testMockFirestore = {
       get: async (ref: any) => ref.get(),
       set: async (ref: any, data: any) => ref.set(data),
       update: async (ref: any, data: any) => ref.update(data),
+      delete: async (ref: any) => ref.delete ? ref.delete() : undefined,
     };
     return cb(t);
   },
@@ -115,3 +141,4 @@ export function assertFirebaseAdminReady(): void {
 export const firestore = firestoreInstance || (isTestEnv ? (testMockFirestore as any) : null);
 export const adminAuth = adminAuthInstance || (isTestEnv ? (testMockAdminAuth as any) : null);
 export const isFirebaseAdminActive = Boolean(firestoreInstance && adminAuthInstance);
+export { FieldValue };

@@ -12,6 +12,7 @@ import mercadopagoWebhookHandler from './api/mercadopago-webhook.js';
 import adminHandler from './api/admin.js';
 import accountHandler from './api/account.js';
 import healthHandler from './api/health.js';
+import loveCompatibilityHandler from './api/love-compatibility.js';
 
 dotenv.config();
 
@@ -38,6 +39,7 @@ app.all('/api/create-payment', (req, res) => createPaymentHandler(req as any, re
 app.all('/api/mercadopago-webhook', (req, res) => mercadopagoWebhookHandler(req as any, res as any));
 app.all('/api/admin', (req, res) => adminHandler(req as any, res as any));
 app.all('/api/account', (req, res) => accountHandler(req as any, res as any));
+app.all('/api/love-compatibility', (req, res) => loveCompatibilityHandler(req as any, res as any));
 
 // Vite Middleware & SPA Static Serving
 async function startServer() {

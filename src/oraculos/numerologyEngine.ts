@@ -1,4 +1,5 @@
 import type { NumerologyResult } from '../types/spiritual.js';
+import { parseAndValidateDate } from '../utils/dateNormalizer.js';
 
 const PYTHAGOREAN_TABLE: Record<string, number> = {
   a: 1, j: 1, s: 1,
@@ -33,44 +34,32 @@ export function reduceToSingleOrMaster(num: number): number {
 }
 
 export function parseBirthDateParts(birthDate: string): { day: number; month: number; year: number } {
-  const digits = String(birthDate || '').replace(/[^\d]/g, '');
-
-  if (birthDate.includes('-')) {
-    const parts = birthDate.split('-');
-    if (parts.length >= 3) {
-      return {
-        year: parseInt(parts[0], 10) || 2000,
-        month: parseInt(parts[1], 10) || 1,
-        day: parseInt(parts[2], 10) || 1,
-      };
-    }
-  }
-
-  if (birthDate.includes('/')) {
-    const parts = birthDate.split('/');
-    if (parts.length >= 3) {
-      return {
-        day: parseInt(parts[0], 10) || 1,
-        month: parseInt(parts[1], 10) || 1,
-        year: parseInt(parts[2], 10) || 2000,
-      };
-    }
-  }
-
-  // Fallback to substring
-  if (digits.length >= 8) {
-    const d = parseInt(digits.substring(0, 2), 10) || 1;
-    const m = parseInt(digits.substring(2, 4), 10) || 1;
-    const y = parseInt(digits.substring(4, 8), 10) || 2000;
-    return { day: d, month: m, year: y };
-  }
-
-  return { day: 1, month: 1, year: 2000 };
+  const { day, month, year } = parseAndValidateDate(birthDate);
+  return { day, month, year };
 }
 
-export function calculateNumerology(fullName: string, birthDate: string): NumerologyResult {
+/**
+ * Calculates current Personal Year (Ano Pessoal) deterministically:
+ * Reduced Day of Birth + Reduced Month of Birth + Reduced Current Year
+ */
+export function calculatePersonalYear(birthDate: string, currentYear?: number): number {
+  const { day, month } = parseAndValidateDate(birthDate);
+  const targetYear = currentYear || new Date().getFullYear();
+
+  const daySum = reduceToSingleOrMaster(day);
+  const monthSum = reduceToSingleOrMaster(month);
+  const yearSum = reduceToSingleOrMaster(
+    String(targetYear)
+      .split('')
+      .reduce((acc, n) => acc + parseInt(n, 10), 0)
+  );
+
+  return reduceToSingleOrMaster(daySum + monthSum + yearSum);
+}
+
+export function calculateNumerology(fullName: string, birthDate: string, currentYear?: number): NumerologyResult {
   const cleanName = normalizeText(fullName);
-  const { day, month, year } = parseBirthDateParts(birthDate);
+  const { day, month, year } = parseAndValidateDate(birthDate);
 
   // 1. Life Path (Caminho de Vida)
   const daySum = reduceToSingleOrMaster(day);
@@ -98,6 +87,7 @@ export function calculateNumerology(fullName: string, birthDate: string): Numero
   const expressionNumber = reduceToSingleOrMaster(expressionTotal || 1);
   const soulUrgeNumber = reduceToSingleOrMaster(soulUrgeTotal || 1);
   const karmicLessonNumber = reduceToSingleOrMaster(Math.abs(lifePathNumber - expressionNumber));
+  const personalYear = calculatePersonalYear(birthDate, currentYear);
 
   const summaries: Record<number, string> = {
     1: 'Estrada da liderança pioneira, independência, iniciativa e coragem de desbravar o desconhecido.',
@@ -111,7 +101,7 @@ export function calculateNumerology(fullName: string, birthDate: string): Numero
     9: 'Estrada do amor universal, sabedoria generosa, conclusão de grandes ciclos e desprendimento nobre.',
     11: 'Número Mestre da intuição transcendental, canalização espiritual, iluminação e inspiração de almas.',
     22: 'Número Mestre do grande construtor, poder de erguer projetos grandiosos que beneficiam o coletivo.',
-    33: 'Número Mestre do amor incondicional, guia espiritual abnegado e elevação da consciência humana.'
+    33: 'Número Mestre do amor incondicional, guia espiritual abnegado e elevação da consciência humana.',
   };
 
   return {
@@ -119,15 +109,16 @@ export function calculateNumerology(fullName: string, birthDate: string): Numero
     expressionNumber,
     soulUrgeNumber,
     karmicLessonNumber,
+    personalYear,
     summary: summaries[lifePathNumber] || summaries[1],
     strengths: [
       `Forte vibração no número ${lifePathNumber}, trazendo poder de manifestação coerente.`,
       `Expressão ${expressionNumber} favorece impacto marcante no ambiente em que atua.`,
-      `Desejo da alma ${soulUrgeNumber} guia escolhas autênticas quando alinhadas com a verdade interior.`
+      `Desejo da alma ${soulUrgeNumber} guia escolhas autênticas quando alinhadas com a verdade interior.`,
     ],
     challenges: [
       `Vigiar a tendência de carregar cobranças desnecessárias em momentos de transição.`,
-      `Harmonizar a pressa do ego com o tempo de maturação cármica da alma.`
-    ]
+      `Harmonizar a pressa do ego com o tempo de maturação cármica da alma.`,
+    ],
   };
 }

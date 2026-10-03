@@ -48,11 +48,11 @@ export const logger = {
     this.log({ level: 'warn', event, metadata: meta, correlationId });
   },
 
-  error(event: string, error: any, correlationId?: string) {
+  error(event: string, error?: any, correlationId?: string) {
     this.log({
       level: 'error',
       event,
-      error: error?.message || String(error),
+      error: error ? (error?.message || String(error)) : undefined,
       metadata: error?.stack ? { stack: error.stack } : undefined,
       correlationId,
     });

@@ -45,7 +45,7 @@ const ODUS = [
     traducao:
       'Oyeku representa o retorno, o recolhimento, a ancestralidade e o contato com aquilo que vem depois do fim de um ciclo.',
     significado:
-      'Odù de profundidade espiritual, silêncio, morte simbólica, encerramentos, retorno das forças antigas, proteção ancestral e transformação pelo recolhimento.',
+      'Odù de profundidade espiritual, silêncio, encerramento de ciclos, retorno das forças antigas, proteção ancestral e transformação pelo recolhimento.',
     luz:
       'proteção dos ancestrais, sabedoria antiga, encerramento necessário, cura pelo silêncio, força espiritual profunda, recebimento de benefícios e superação de perigos ligados à morte.',
     sombra:
@@ -64,7 +64,7 @@ const ODUS = [
       'recolhimento',
       'fim de ciclo',
       'retorno',
-      'morte simbólica',
+      'renovação espiritual',
       'proteção espiritual',
       'silêncio',
       'renascimento'
@@ -406,7 +406,7 @@ conselho:
 'escute sua espiritualidade, mas mantenha os pés firmes na realidade.',
 
 alerta:
-'evite fugir da realidade através de fantasias ou ilusões.',
+'evite fugir da realidade através de devaneios ou ilusões.',
 
 orixas: ['Ọrúnmìlá', 'Obatalá', 'Ifá'],
 

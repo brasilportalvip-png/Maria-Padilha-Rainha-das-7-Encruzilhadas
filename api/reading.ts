@@ -10,10 +10,19 @@ import { throwBuzios } from '../src/oraculos/buziosEngine.js';
 import { calculateNumerology } from '../src/oraculos/numerologyEngine.js';
 import { calculateCabala } from '../src/oraculos/cabalaEngine.js';
 import { calculateAstrology } from '../src/oraculos/astrologyEngine.js';
-import { saveOracleReading, getOracleReadingById, getReadingIdByIdempotency } from '../src/oraculos/readingStorage.js';
+import {
+  saveOracleReading,
+  getOracleReadingById,
+  getReadingIdByIdempotency,
+} from '../src/oraculos/readingStorage.js';
+import {
+  acquireOperation,
+  completeOperation,
+  failOperation,
+} from './services/operationService.js';
 import { checkRateLimit } from './services/rateLimiter.js';
 import { logger } from './services/logger.js';
-import type { OracleReadingRecord, OracleRawResult, NatalData } from '../src/types/spiritual.js';
+import type { OracleReadingRecord, OracleRawResult, NatalData, ParticipantRole } from '../src/types/spiritual.js';
 import {
   READING_CONSULTATION_COST,
   INSUFFICIENT_CREDITS_MESSAGE,
@@ -54,11 +63,21 @@ export default async function handler(req: Request, res: Response) {
     });
   }
 
-  const { type, question, specificName, specificDate, idempotencyKey, readingId } = parseResult.data;
+  const {
+    type,
+    question,
+    specificName,
+    specificDate,
+    relationshipContext,
+    participantRelation,
+    participantRole,
+    idempotencyKey,
+    readingId,
+  } = parseResult.data;
 
-  // 1. Check if readingId or idempotencyKey already exists (F5 or reload should NOT redraw cards!)
+  // 1. Check if readingId was provided (historical reading retrieval - free, no draw, no debit)
   if (readingId) {
-    const existing = await getOracleReadingById(readingId);
+    const existing = await getOracleReadingById(user.uid, readingId);
     if (existing) {
       return res.status(200).json({
         reading: existing.interpretationHtml,
@@ -66,29 +85,53 @@ export default async function handler(req: Request, res: Response) {
         type: existing.oracleType,
         aiUsed: existing.modelUsed !== 'offline-local-simulator',
         isCached: true,
+      });
+    } else {
+      return res.status(404).json({
+        error: 'Consulta não encontrada ou acesso não autorizado.',
+        code: 'NOT_FOUND',
       });
     }
   }
 
-  const existingId = await getReadingIdByIdempotency(user.uid, idempotencyKey);
-  if (existingId) {
-    const existing = await getOracleReadingById(existingId);
-    if (existing) {
-      return res.status(200).json({
-        reading: existing.interpretationHtml,
-        readingRecord: existing,
-        type: existing.oracleType,
-        aiUsed: existing.modelUsed !== 'offline-local-simulator',
-        isCached: true,
-      });
-    }
+  // IdempotencyKey is strictly mandatory for any new paid reading consultation
+  if (!idempotencyKey || typeof idempotencyKey !== 'string' || idempotencyKey.trim().length === 0) {
+    return res.status(400).json({
+      error: 'idempotencyKey é obrigatória para realizar uma consulta oracular.',
+      code: 'MISSING_IDEMPOTENCY_KEY',
+    });
   }
+
+  // Atomic Operation Lock acquired BEFORE debit, draw, or Gemini
+  const opCheck = await acquireOperation(user.uid, idempotencyKey, 'reading');
+
+if (opCheck.status === 'completed') {
+  return res.status(200).json({
+    ...opCheck.operation.resultPayload,
+    isCached: true,
+  });
+}
+
+if (opCheck.status === 'failed') {
+  return res.status(409).json({
+    error: 'Esta tentativa anterior falhou e foi encerrada. Inicie uma nova consulta.',
+    code: 'OPERATION_PREVIOUSLY_FAILED',
+  });
+}
+
+if (opCheck.status === 'processing') {
+  return res.status(409).json({
+    error: 'Esta consulta oracular já está sendo processada. Por favor, aguarde.',
+    code: 'OPERATION_IN_PROGRESS',
+  });
+}
 
   // REGRA DO PROPRIETÁRIO: Cada consulta oracular paga custa exatamente 5 créditos
   const creditCost = READING_CONSULTATION_COST; // 5 créditos
 
   // Pre-check balance before execution
   if (user.credits < creditCost) {
+    await failOperation(user.uid, idempotencyKey, 'INSUFFICIENT_CREDITS');
     return res.status(402).json({
       error: INSUFFICIENT_CREDITS_MESSAGE,
       code: 'INSUFFICIENT_CREDITS',
@@ -103,9 +146,10 @@ export default async function handler(req: Request, res: Response) {
       amount: creditCost,
       type: 'reading',
       description: `Consulta oracular: ${type}`,
-      idempotencyKey: idempotencyKey || `read_${user.uid}_${crypto.randomUUID()}`,
+      idempotencyKey,
     });
   } catch (err: any) {
+    await failOperation(user.uid, idempotencyKey, err.message || 'DEBIT_FAILED');
     if (err.message === 'INSUFFICIENT_CREDITS') {
       return res.status(402).json({
         error: INSUFFICIENT_CREDITS_MESSAGE,
@@ -115,33 +159,59 @@ export default async function handler(req: Request, res: Response) {
     logger.error('Credit debit failure in reading', err, correlationId);
     return res.status(500).json({ error: 'Falha ao debitar créditos da leitura.' });
   }
+try {
 
   // 3. Prepare Context & Real Oracle Execution
   const userTimezone = user.timezone || 'America/Sao_Paulo';
   const temporal = getTemporalContext(userTimezone);
-  const userQuestion = question || `Consulta aos oráculos sagrados na modalidade ${type}`;
+  const userQuestion = question?.trim() || `Consulta geral aos oráculos sagrados na modalidade ${type}`;
   const intent = classifyIntent(userQuestion, userTimezone);
 
   // Authoritative consulente natal data from database ONLY (client cannot override)
   const natalSnapshot: NatalData = {
     fullName: user.fullName || 'Consulente',
     birthDate: user.birthDate || '',
-    birthTime: user.birthTime || '',
-    city: user.city || '',
+    birthTime: user.birthTime || null,
     timezone: userTimezone,
   };
 
-  // Distinct participant structure for third parties (does not mutate consulente natal record)
+  // Explicit mapping of relationship context — NEVER assume "parceiro_amoroso" if declared business/family/work
+  let assignedRole: ParticipantRole = 'outro';
+  let assignedContext = 'consulta';
+
   if (specificName) {
+    const rawRel = (relationshipContext || participantRelation || participantRole || '').toLowerCase().trim();
+    if (rawRel === 'sociedade' || rawRel === 'socio') {
+      assignedRole = 'socio';
+      assignedContext = 'sociedade';
+    } else if (['trabalho', 'chefe', 'funcionario', 'cliente'].includes(rawRel)) {
+      assignedRole = rawRel === 'chefe' ? 'chefe' : rawRel === 'funcionario' ? 'funcionario' : 'outro';
+      assignedContext = 'trabalho';
+    } else if (rawRel === 'familia' || rawRel === 'familiar') {
+      assignedRole = 'familiar';
+      assignedContext = 'familia';
+    } else if (rawRel === 'amizade' || rawRel === 'amigo') {
+      assignedRole = 'amigo';
+      assignedContext = 'amizade';
+    } else if (['amor', 'ex', 'conjuge', 'namorado', 'namorada', 'parceiro_amoroso'].includes(rawRel)) {
+      assignedRole = rawRel === 'ex' ? 'ex' : 'parceiro_amoroso';
+      assignedContext = 'amor';
+    } else if (intent.isRomantic) {
+      assignedRole = 'parceiro_amoroso';
+      assignedContext = 'amor';
+    }
+
     const existingParticipant = intent.participants.find((p) => p.name.toLowerCase() === specificName.toLowerCase());
     if (existingParticipant) {
       if (specificDate && !existingParticipant.birthDate) existingParticipant.birthDate = specificDate;
+      existingParticipant.role = assignedRole;
+      existingParticipant.relationshipContext = assignedContext;
     } else {
       intent.participants.push({
         name: specificName,
         birthDate: specificDate,
-        role: intent.isRomantic ? 'parceiro_amoroso' : 'outro',
-        relationshipContext: intent.isRomantic ? 'amor' : 'consulta',
+        role: assignedRole,
+        relationshipContext: assignedContext,
       });
     }
   }
@@ -186,7 +256,12 @@ export default async function handler(req: Request, res: Response) {
     user,
     question: userQuestion,
     rawOracleResult: rawResult,
-    partnerData: specificName ? { name: specificName, birthDate: specificDate } : undefined,
+    partnerData: specificName ? {
+      name: specificName,
+      birthDate: specificDate,
+      role: assignedRole,
+      relationshipContext: assignedContext,
+    } : undefined,
   });
 
   // 5. Gemini Interpretation of the REAL Oracle Result
@@ -251,7 +326,23 @@ ${spiritualAI.systemContext}
     timezone: userTimezone,
   };
 
-  await saveOracleReading(readingRecord, idempotencyKey);
+  try {
+    await saveOracleReading(readingRecord, idempotencyKey);
+  } catch (saveErr) {
+    logger.error('Failed to save oracle reading in /api/reading, executing refund', saveErr, correlationId);
+    await failOperation(user.uid, idempotencyKey, 'SAVE_READING_FAILED', debitResult.ledgerId);
+    await refundCredits({
+      uid: user.uid,
+      amount: creditCost,
+      reason: 'Falha técnica ao persistir leitura oracular — estorno automático integral',
+      referenceId: debitResult.ledgerId,
+    }).catch(() => null);
+
+    return res.status(500).json({
+      error: 'Não foi possível salvar a leitura oracular. Seus créditos foram estornados integralmente.',
+      code: 'SAVE_READING_FAILED',
+    });
+  }
 
   recordSpiritualEvent({
     uid: user.uid,
@@ -259,15 +350,54 @@ ${spiritualAI.systemContext}
     readingId: newReadingId,
     summary: `${type}: ${userQuestion}`,
     partnerName: specificName,
+    relationType: assignedRole,
   }).catch(() => {});
 
-  return res.status(200).json({
+  const responsePayload = {
     reading: interpretationHtml,
     readingRecord,
     type,
     aiUsed: modelUsed !== 'offline-local-simulator',
     newCreditsBalance: debitResult.newBalance,
+  };
+
+  await completeOperation(user.uid, idempotencyKey, {
+    readingId: newReadingId,
+    ledgerId: debitResult.ledgerId,
+    rawOracleResult: rawResult,
+    resultPayload: responsePayload,
   });
+
+  return res.status(200).json(responsePayload);
+
+} catch (err: any) {
+  logger.error(
+    'Falha após débito durante execução da consulta, executando estorno',
+    err,
+    correlationId
+  );
+
+  await failOperation(
+    user.uid,
+    idempotencyKey,
+    err?.message || 'READING_EXECUTION_FAILED',
+    debitResult.ledgerId
+  );
+
+  const refundRes = await refundCredits({
+    uid: user.uid,
+    amount: creditCost,
+    reason: 'Falha técnica durante a execução da consulta — estorno automático integral',
+    referenceId: debitResult.ledgerId,
+  }).catch(() => null);
+
+  return res.status(500).json({
+    error: 'Não foi possível concluir a consulta. Seus créditos foram estornados integralmente.',
+    code: 'READING_EXECUTION_FAILED',
+    refunded: true,
+    newCreditsBalance: refundRes?.newBalance,
+  });
+}
 }
 
 function buildStructuredLocalInterpretation(
@@ -311,7 +441,7 @@ function buildStructuredLocalInterpretation(
     body += `<h4>🌙 Astrologia e Horário Cósmico:</h4>
     <p>Sol em: <strong>${raw.astrology.sunSign}</strong> (Elemento ${raw.astrology.element}, Modo ${raw.astrology.modality})<br/>
     Fase da Lua: <strong>${raw.astrology.lunarPhase}</strong> — ${raw.astrology.lunarPhaseDescription}<br/>
-    Hora Planetária Regente: <strong>${raw.astrology.planetaryHourRuler}</strong></p>`;
+    Hora Planetária Regente: <strong>${raw.astrology.planetaryHourRuler ? raw.astrology.planetaryHourRuler : 'não calculada porque a hora de nascimento não foi informada'}</strong></p>`;
   }
 
   return `

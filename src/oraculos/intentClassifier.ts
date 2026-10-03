@@ -65,10 +65,7 @@ export function extractParticipants(text: string): Participant[] {
     }
   }
 
-  // Extract date of birth if in text
-  const dateMatch = text.match(DATE_REGEX);
-  const foundDate = dateMatch ? dateMatch[0] : undefined;
-
+  // Extract date of birth associated with specific participant names
   extractedNames.forEach((name) => {
     let role: ParticipantRole = 'outro';
 
@@ -84,9 +81,25 @@ export function extractParticipants(text: string): Participant[] {
       role = 'amigo';
     }
 
+    // Check if there is a date immediately following this specific name (e.g. "João 10/02/1980" or "Carlos, 15/04/1975")
+    const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const nameWithDateRegex = new RegExp(`${escapedName}[\\s,:-]+(?:nascid[oa]\\s+(?:em\\s+)?)?(\\d{1,2}[\\/\\-]\\d{1,2}[\\/\\-]\\d{2,4})`, 'i');
+    const specificMatch = text.match(nameWithDateRegex);
+
+    let participantBirthDate: string | undefined = undefined;
+    if (specificMatch?.[1]) {
+      participantBirthDate = specificMatch[1];
+    } else if (extractedNames.size === 1) {
+      // Single person mentioned: if there is exactly one date in the entire text, it belongs to them
+      const singleDateMatch = text.match(DATE_REGEX);
+      if (singleDateMatch) {
+        participantBirthDate = singleDateMatch[0];
+      }
+    }
+
     participants.push({
       name,
-      birthDate: foundDate,
+      birthDate: participantBirthDate,
       role,
     });
   });

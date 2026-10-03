@@ -16,6 +16,13 @@ import {
   INSUFFICIENT_CREDITS_MESSAGE,
 } from '../config/pricing';
 
+function generateClientUUID(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return `idemp_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
+}
+
 interface ChatMessage {
   id: string;
   role: 'user' | 'model';
@@ -34,6 +41,7 @@ export const Chat: React.FC = () => {
   const [showUserPanel, setShowUserPanel] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const currentChatIdempotencyKeyRef = useRef<string>(generateClientUUID());
 
   const CREDIT_COST = ORACLE_QUESTION_COST; // 5 créditos
 
@@ -83,6 +91,7 @@ export const Chat: React.FC = () => {
           message: userText,
           history: chatHistory,
           pomboGiraName: 'Maria Padilha Rainha das 7 Encruzilhadas',
+          idempotencyKey: currentChatIdempotencyKeyRef.current,
         }),
       });
 
@@ -91,6 +100,9 @@ export const Chat: React.FC = () => {
       if (!res.ok) {
         throw new Error(data.error || 'Erro na conexão com o oráculo.');
       }
+
+      // Successful reply received: refresh idempotency key for next question
+      currentChatIdempotencyKeyRef.current = generateClientUUID();
 
       if (typeof data.newCreditsBalance === 'number') {
         setUserCredits(data.newCreditsBalance);

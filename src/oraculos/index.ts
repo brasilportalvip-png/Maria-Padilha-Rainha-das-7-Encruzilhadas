@@ -12,8 +12,7 @@ export * from './motor-intencao-universal.js';
 export interface ConsultaSupremaInput {
   fullName: string;
   birthDate: string;
-  birthTime?: string;
-  city?: string;
+  birthTime?: string | null;
   question?: string;
 }
 
@@ -23,15 +22,14 @@ export function buildConsultaSuprema(
   const numerologia = buildNumerologiaSuprema({
     fullName: input.fullName,
     birthDate: input.birthDate,
-    birthTime: input.birthTime,
+    birthTime: input.birthTime || undefined,
     question: input.question
   });
 
   const astrologia = buildAstrologiaSuprema({
     fullName: input.fullName,
     birthDate: input.birthDate,
-    birthTime: input.birthTime,
-    city: input.city,
+    birthTime: input.birthTime || undefined,
     question: input.question
   });
 

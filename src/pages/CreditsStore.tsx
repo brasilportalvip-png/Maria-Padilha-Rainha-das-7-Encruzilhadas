@@ -1,13 +1,21 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useApp } from '../contexts/AppContext';
 import { Coins, ShieldCheck, Check, RefreshCw } from 'lucide-react';
 import { CreditPlan } from '../types/spiritual';
+
+function generateClientUUID(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return `idemp_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
+}
 
 export const CreditsStore: React.FC = () => {
   const { user, apiFetch, setUserCredits } = useApp();
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingPlanId, setProcessingPlanId] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<{ type: 'error' | 'success'; message: string } | null>(null);
+  const paymentIdempotencyRef = useRef<Record<string, string>>({});
 
   const plans: CreditPlan[] = [
     {
@@ -42,10 +50,14 @@ export const CreditsStore: React.FC = () => {
       setIsProcessing(true);
       setProcessingPlanId(plan.id);
 
+      const idempotencyKey = paymentIdempotencyRef.current[plan.id] || generateClientUUID();
+      paymentIdempotencyRef.current[plan.id] = idempotencyKey;
+
       const response = await apiFetch('/api/create-payment', {
         method: 'POST',
         body: JSON.stringify({
           planId: plan.id,
+          idempotencyKey,
         }),
       });
 

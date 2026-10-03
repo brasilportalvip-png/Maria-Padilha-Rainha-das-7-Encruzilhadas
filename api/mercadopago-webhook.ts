@@ -41,6 +41,16 @@ export function verifyMercadoPagoSignature(
     return false;
   }
 
+  // Replay protection: verify signature timestamp is within 15-minute window
+  const tsNum = parseInt(ts, 10);
+  if (!isNaN(tsNum)) {
+    const tsMs = tsNum > 1e11 ? tsNum : tsNum * 1000;
+    const diff = Math.abs(Date.now() - tsMs);
+    if (diff > 15 * 60 * 1000) {
+      return false;
+    }
+  }
+
   // Mercado Pago manifest format: "id:<data.id>;request-id:<x-request-id>;ts:<ts>;"
   const manifest = `id:${dataId};request-id:${xRequestId};ts:${ts};`;
   const computedHash = crypto.createHmac('sha256', secretKey).update(manifest).digest('hex');
@@ -65,6 +75,13 @@ export default async function handler(req: Request, res: Response) {
   const webhookSecret = process.env.MERCADO_PAGO_WEBHOOK_SECRET;
   const xSignature = req.headers['x-signature'] as string | undefined;
   const xRequestId = req.headers['x-request-id'] as string | undefined;
+  const isProduction = process.env.VERCEL_ENV === 'production' || process.env.NODE_ENV === 'production';
+
+  // In production: secret is mandatory. Fail closed!
+  if (isProduction && (!webhookSecret || webhookSecret === 'MY_WEBHOOK_SECRET')) {
+    logger.error('CRITICAL PRODUCTION FAIL-CLOSED: MERCADO_PAGO_WEBHOOK_SECRET is missing or placeholder.');
+    return res.status(503).json({ error: 'Configuração de segurança do webhook indisponível.' });
+  }
 
   // Strict signature verification when webhook secret is configured
   if (webhookSecret && webhookSecret !== 'MY_WEBHOOK_SECRET') {

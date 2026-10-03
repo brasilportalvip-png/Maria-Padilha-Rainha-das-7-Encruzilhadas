@@ -9,7 +9,16 @@ export async function saveOracleReading(
   record: OracleReadingRecord,
   idempotencyKey?: string
 ): Promise<OracleReadingRecord> {
-  if (process.env.NODE_ENV === 'test') {
+  const isTest = process.env.NODE_ENV === 'test' || Boolean(process.env.VITEST);
+
+  if (isTest && idempotencyKey && testIdempotencyCache.has(idempotencyKey)) {
+    const existingReadingId = testIdempotencyCache.get(idempotencyKey)!;
+    if (testReadingsCache.has(existingReadingId)) {
+      return testReadingsCache.get(existingReadingId)!;
+    }
+  }
+
+  if (isTest) {
     testReadingsCache.set(record.readingId, record);
     if (idempotencyKey) {
       testIdempotencyCache.set(idempotencyKey, record.readingId);
@@ -17,7 +26,7 @@ export async function saveOracleReading(
   }
 
   if (!firestore) {
-    if (process.env.NODE_ENV === 'test') return record;
+    if (isTest) return record;
     const err = new Error('SERVICE_UNAVAILABLE: Banco de dados indisponível para persistir leitura.');
     (err as any).statusCode = 503;
     throw err;
@@ -28,7 +37,20 @@ export async function saveOracleReading(
 
     if (idempotencyKey) {
       const idempRef = firestore.collection('reading_idempotency').doc(`${record.uid}_${idempotencyKey}`);
-      await firestore.runTransaction(async (transaction: any) => {
+      return await firestore.runTransaction(async (transaction: any) => {
+        const idempSnap = await transaction.get(idempRef);
+        if (idempSnap.exists) {
+          const idempData = idempSnap.data();
+          if (idempData?.readingId) {
+            const existingReadingSnap = await transaction.get(
+              firestore.collection('readings').doc(idempData.readingId)
+            );
+            if (existingReadingSnap.exists) {
+              return existingReadingSnap.data() as OracleReadingRecord;
+            }
+          }
+        }
+
         transaction.set(readingRef, record);
         transaction.set(idempRef, {
           readingId: record.readingId,
@@ -36,22 +58,25 @@ export async function saveOracleReading(
           idempotencyKey,
           createdAt: new Date().toISOString(),
         });
+
+        return record;
       });
     } else {
       await readingRef.set(record);
+      return record;
     }
   } catch (err: any) {
-    if (process.env.NODE_ENV === 'test') return record;
+    if (isTest) return record;
     console.error('[readingStorage] Critical: Failed to persist reading to Firestore:', err);
     throw new Error('Falha ao persistir leitura oracular no banco de dados.');
   }
-
-  return record;
 }
 
-export async function getOracleReadingById(readingId: string): Promise<OracleReadingRecord | null> {
+export async function getOracleReadingById(uid: string, readingId: string): Promise<OracleReadingRecord | null> {
   if (process.env.NODE_ENV === 'test' && testReadingsCache.has(readingId)) {
-    return testReadingsCache.get(readingId)!;
+    const cached = testReadingsCache.get(readingId)!;
+    if (cached.uid !== uid) return null; // IDOR Protection
+    return cached;
   }
 
   if (!firestore) return null;
@@ -59,7 +84,11 @@ export async function getOracleReadingById(readingId: string): Promise<OracleRea
   try {
     const doc = await firestore.collection('readings').doc(readingId).get();
     if (doc.exists) {
-      return doc.data() as OracleReadingRecord;
+      const data = doc.data() as OracleReadingRecord;
+      if (data.uid !== uid) {
+        return null; // IDOR Protection: strictly verify ownership
+      }
+      return data;
     }
   } catch (err) {
     console.warn('[readingStorage] Warning: Failed to fetch reading from Firestore:', err);
@@ -71,7 +100,8 @@ export async function getOracleReadingById(readingId: string): Promise<OracleRea
 export async function getReadingIdByIdempotency(uid: string, idempotencyKey?: string): Promise<string | null> {
   if (!idempotencyKey) return null;
 
-  if (process.env.NODE_ENV === 'test' && testIdempotencyCache.has(idempotencyKey)) {
+  const isTest = process.env.NODE_ENV === 'test' || Boolean(process.env.VITEST);
+  if (isTest && testIdempotencyCache.has(idempotencyKey)) {
     return testIdempotencyCache.get(idempotencyKey)!;
   }
 
@@ -83,8 +113,14 @@ export async function getReadingIdByIdempotency(uid: string, idempotencyKey?: st
       return idempDoc.data()?.readingId || null;
     }
   } catch (err) {
-    console.warn('[readingStorage] Warning: Failed to fetch idempotency key:', err);
+    console.error('[readingStorage] FAIL CLOSED: Error checking idempotency key in Firestore:', err);
+    throw new Error('Falha ao verificar idempotência da consulta no banco de dados.');
   }
 
   return null;
+}
+
+export function clearTestReadingStorage(): void {
+  testReadingsCache.clear();
+  testIdempotencyCache.clear();
 }

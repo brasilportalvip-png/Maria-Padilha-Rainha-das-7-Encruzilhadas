@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import { firestore } from '../_firebaseAdmin.js';
 import type { Request, Response, NextFunction } from 'express';
 import { getClientIp, type AuthenticatedRequest } from '../middleware/auth.js';
@@ -10,15 +11,28 @@ interface MemoryEntry {
 const memoryStore = new Map<string, MemoryEntry>();
 const isTestEnv = process.env.NODE_ENV === 'test' || Boolean(process.env.VITEST);
 
+export function clearRateLimitForUid(uid: string): void {
+  const prefixes = [`chat_${uid}`, `read_${uid}`, `love_${uid}`, `pay_${uid}`, uid];
+  for (const p of prefixes) {
+    memoryStore.delete(p);
+  }
+}
+
 export async function checkRateLimit(
   identifier: string,
   limit: number = 30,
-  windowMs: number = 60 * 1000
+  windowMs: number = 60 * 1000,
+  failClosed: boolean = false
 ): Promise<{ allowed: boolean; remaining: number; resetInMs: number }> {
   const now = Date.now();
 
-  // In test environment or when Firestore is unavailable, use fast in-memory store
+  // In test environment or local development, use memory store. In production, if Firestore is unavailable and failClosed is true, block safely.
   if (isTestEnv || !firestore) {
+    if (!isTestEnv && !firestore && failClosed) {
+      console.error('[RateLimiter] Firestore unavailable in production for failClosed endpoint:', identifier);
+      return { allowed: false, remaining: 0, resetInMs: windowMs };
+    }
+
     const entry = memoryStore.get(identifier);
     if (!entry || now > entry.resetTime) {
       memoryStore.set(identifier, {
@@ -41,9 +55,11 @@ export async function checkRateLimit(
   }
 
   // Serverless distributed rate limiter via Firestore atomic transaction
+  // Use irreversible SHA-256 hash of identifier to prevent storing raw UIDs or IPs in rate limit document IDs
   try {
     const bucketIndex = Math.floor(now / windowMs);
-    const docId = `rl_${identifier.replace(/[^a-zA-Z0-9_-]/g, '_')}_${bucketIndex}`;
+    const hashedId = crypto.createHash('sha256').update(identifier).digest('hex').slice(0, 32);
+    const docId = `rl_${hashedId}_${bucketIndex}`;
     const docRef = firestore.collection('rate_limits').doc(docId);
     const resetTime = (bucketIndex + 1) * windowMs;
     const resetInMs = Math.max(0, resetTime - now);
@@ -70,14 +86,19 @@ export async function checkRateLimit(
 
       t.set(docRef, {
         count: nextCount,
-        expiresAt: new Date(resetTime).toISOString(),
+        expiresAt: new Date(resetTime),
+        expiresAtIso: new Date(resetTime).toISOString(),
       }, { merge: true });
     });
 
     return { allowed, remaining, resetInMs };
   } catch (e) {
-    // Fail-open for transient network errors to not block legitimate users
-    console.warn('[RateLimiter] Distributed rate limit check failed, failing open:', e);
+    if (failClosed) {
+      console.error('[RateLimiter] Distributed rate limit check failed, failing closed for sensitive endpoint:', e);
+      return { allowed: false, remaining: 0, resetInMs: windowMs };
+    }
+    // Fail-open for general reading queries
+    console.warn('[RateLimiter] Distributed rate limit check failed, failing open for general query:', e);
     return { allowed: true, remaining: 1, resetInMs: windowMs };
   }
 }

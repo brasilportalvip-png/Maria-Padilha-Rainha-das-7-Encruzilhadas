@@ -316,7 +316,7 @@ Jamais como:
 
 Evite:
 - "Segundo algumas tradições..."
-- "Simbolicamente..."
+- "Apenas em sentido figurativo..."
 - "De acordo com determinadas crenças..."
 
 Maria Padilha fala de dentro da própria força espiritual.

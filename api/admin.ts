@@ -18,7 +18,20 @@ export default async function handler(req: Request, res: Response) {
   try {
     if (action === 'list_users') {
       const snapshot = await firestore.collection('users').limit(50).get();
-      const users = snapshot.docs.map((doc) => doc.data());
+      const users = snapshot.docs.map((doc) => {
+        const d = doc.data();
+        return {
+          uid: d.uid,
+          fullName: d.fullName,
+          email: d.email,
+          birthDate: d.birthDate,
+          birthTime: d.birthTime,
+          credits: d.credits,
+          isBlocked: d.isBlocked,
+          role: d.role,
+          createdAt: d.createdAt,
+        };
+      });
       return res.status(200).json({ users });
     }
 
@@ -35,25 +48,34 @@ export default async function handler(req: Request, res: Response) {
       }
 
       const { targetUid, creditsDelta, reason } = parseResult.data;
-      const current = await getUserCredits(targetUid);
-      const newBalance = Math.max(0, current + creditsDelta);
+      const ledgerId = `adm_${crypto.randomUUID()}`;
+      let newBalance = 0;
 
-      await firestore.collection('users').doc(targetUid).set({ credits: newBalance }, { merge: true });
+      await firestore.runTransaction(async (transaction: any) => {
+        const userRef = firestore.collection('users').doc(targetUid);
+        const userSnap = await transaction.get(userRef);
+        if (!userSnap.exists) {
+          throw new Error('USER_NOT_FOUND');
+        }
+        const currentBalance = userSnap.data()?.credits || 0;
+        newBalance = Math.max(0, currentBalance + creditsDelta);
 
-      const ledgerEntry: CreditLedgerEntry = {
-        id: `adm_${crypto.randomUUID()}`,
-        uid: targetUid,
-        type: 'admin_adjustment',
-        amount: creditsDelta,
-        previousBalance: current,
-        newBalance,
-        description: `Ajuste administrativo: ${reason}`,
-        timestamp: new Date().toISOString(),
-      };
+        const ledgerEntry: CreditLedgerEntry = {
+          id: ledgerId,
+          uid: targetUid,
+          type: 'admin_adjustment',
+          amount: creditsDelta,
+          previousBalance: currentBalance,
+          newBalance,
+          description: `Ajuste administrativo: ${reason}`,
+          timestamp: new Date().toISOString(),
+        };
 
-      await firestore.collection('credit_ledger').doc(ledgerEntry.id).set(ledgerEntry);
+        transaction.set(userRef, { credits: newBalance }, { merge: true });
+        transaction.set(firestore.collection('credit_ledger').doc(ledgerId), ledgerEntry);
+      });
+
       logger.security('Admin adjusted user credits', { targetUid, delta: creditsDelta, reason, byAdmin: authReq.user?.email });
-
       return res.status(200).json({ success: true, newBalance });
     }
 

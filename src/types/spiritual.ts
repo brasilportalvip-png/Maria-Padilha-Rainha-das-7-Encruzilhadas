@@ -1,9 +1,8 @@
 export interface NatalData {
   fullName: string;
-  birthDate: string; // YYYY-MM-DD or DD/MM/YYYY
-  birthTime?: string; // HH:mm
-  city: string;
-  timezone?: string; // e.g. America/Sao_Paulo
+  birthDate: string; // YYYY-MM-DD or DD/MM/AAAA
+  birthTime?: string | null; // HH:mm - opcional, informado somente se souber
+  timezone?: string; // e.g. America/Sao_Paulo (contexto técnico do sistema, NÃO é dado natal)
 }
 
 export type IntentCategory =
@@ -38,6 +37,7 @@ export type ParticipantRole =
 export interface Participant {
   name: string;
   birthDate?: string;
+  birthTime?: string | null;
   role: ParticipantRole;
   relationshipContext?: string;
 }
@@ -91,6 +91,7 @@ export interface NumerologyResult {
   expressionNumber: number;
   soulUrgeNumber: number;
   karmicLessonNumber?: number;
+  personalYear?: number;
   summary: string;
   strengths: string[];
   challenges: string[];
@@ -137,8 +138,7 @@ export interface UserProfile {
   password?: string;
   phone: string;
   birthDate: string;
-  birthTime?: string;
-  city: string;
+  birthTime?: string | null;
   timezone?: string;
   credits: number;
   isBlocked: boolean;
@@ -269,7 +269,7 @@ export const FREE_GREETING_SUPPORT_COST = 0;
 export interface PermanentSpiritualProfile {
   uid: string;
   natalProfileVersion: number;
-  natalSignature: string; // Hash of fullName + birthDate + birthTime + city
+  natalSignature: string; // Hash estrito de: fullName | birthDate | birthTime (SEM CIDADE)
   numerology: {
     lifePath: number;
     expression: number;
@@ -291,9 +291,10 @@ export interface PermanentSpiritualProfile {
   astrology: {
     sunSign: string;
     element: string;
-    rulingPlanet: string;
-    lunarPhase: string;
-    planetaryHour: string;
+    rulingPlanet: string | null;
+    natalMoonPhase: string;
+    lunarPhase?: string;
+    planetaryHour: string | null;
     astrologicalGuidance: string;
   };
   karmicPatterns: {

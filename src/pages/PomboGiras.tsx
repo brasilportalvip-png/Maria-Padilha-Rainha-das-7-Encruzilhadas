@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useApp } from '../contexts/AppContext';
 import { generatePomboGiraNames, getPomboGiraDetails, MAJOR_POMBO_GIRAS } from '../data/pomboGiras';
 import { motion } from 'motion/react';
@@ -9,6 +9,13 @@ import {
   INSUFFICIENT_CREDITS_MESSAGE,
 } from '../config/pricing';
 
+function generateClientUUID(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return `idemp_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
+}
+
 export const PomboGiras: React.FC = () => {
   const { user, apiFetch, setUserCredits, addHistoryItem } = useApp();
   const [allNames] = useState(generatePomboGiraNames());
@@ -17,6 +24,7 @@ export const PomboGiras: React.FC = () => {
   const [customAdvice, setCustomAdvice] = useState<string | null>(null);
   const [isLoadingAdvice, setIsLoadingAdvice] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+  const idempotencyKeyRef = useRef<string>(generateClientUUID());
 
   // Handle filter
   const filteredNames = allNames.filter(name => 
@@ -28,6 +36,7 @@ export const PomboGiras: React.FC = () => {
     setSelectedPG(details);
     setCustomAdvice(null);
     setErrorMsg('');
+    idempotencyKeyRef.current = generateClientUUID();
   };
 
   const handleRequestAdvice = async () => {
@@ -45,12 +54,16 @@ export const PomboGiras: React.FC = () => {
         method: 'POST',
         body: JSON.stringify({
           message: `Diga seu nome completo, seu reino e me dê um conselho espiritual personalizado e inédito baseado no seu mistério de atuação.`,
-          pomboGiraName: selectedPG.name
+          pomboGiraName: selectedPG.name,
+          idempotencyKey: idempotencyKeyRef.current,
         })
       });
 
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Erro ao conectar à entidade.');
+
+      // Refresh idempotency key on success for subsequent advice
+      idempotencyKeyRef.current = generateClientUUID();
 
       if (typeof data.newCreditsBalance === 'number') {
         setUserCredits(data.newCreditsBalance);

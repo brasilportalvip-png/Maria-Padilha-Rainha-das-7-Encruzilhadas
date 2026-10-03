@@ -13,7 +13,7 @@ Conforme diretriz do comitê técnico e do proprietário:
 2. **MESMOS Usuários**: Todos os UIDs do Firebase Authentication continuam idênticos e ativos.
 3. **MESMO Firestore**: Nenhuma coleção é recriada ou zerada.
 4. **MESMOS Saldos de Crédito**: A integridade financeira e contábil existente em `users/{uid}.credits` é mantida integralmente.
-5. **MESMOS Dados Natais**: Data de nascimento, hora, cidade e nome civil dos consulentes não são sobrescritos com valores vazios.
+5. **MESMOS Dados Natais**: Nome de solteiro, data de nascimento e hora (se informada) dos consulentes não são sobrescritos com valores vazios (cidade removida da base natal conforme diretriz).
 6. **MESMAS Credenciais Mercado Pago**: `MERCADOPAGO_ACCESS_TOKEN` e `MERCADO_PAGO_WEBHOOK_SECRET` reais configurados na Vercel continuam válidos.
 7. **Nenhuma Migração Destrutiva**: Qualquer campo novo adicionado ao schema (`lastPlanId`, `level`, `xp`, `cabala`, `astrology`) utiliza valores opcionais com fallback retrocompatível.
 

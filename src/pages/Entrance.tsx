@@ -99,7 +99,7 @@ export const Entrance: React.FC = () => {
 
         <div id="mp_disclaimer" className="mx-auto mt-7 max-w-lg border-t border-gray-800 pt-4 text-[11px] leading-normal text-gray-500">
           Este ambiente respeita todas as crenças e oferece orientação espiritual
-          simbólica. Não substitui ajuda médica, psicológica, jurídica ou financeira.
+          e oracular. Não substitui ajuda médica, psicológica, jurídica ou financeira.
         </div>
       </motion.div>
     </div>

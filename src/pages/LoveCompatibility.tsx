@@ -1,87 +1,109 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useApp } from '../contexts/AppContext';
 import { motion } from 'motion/react';
-import { Heart, Coins, Calendar, User, RefreshCw, AlertCircle, Sparkles, Flame, Moon, Compass } from 'lucide-react';
+import { Heart, Coins, Calendar, Clock, User, RefreshCw, AlertCircle, Sparkles, Flame, Moon, Compass, Lock } from 'lucide-react';
 import { ReadingViewer } from '../components/ReadingViewer';
 import {
   LOVE_COMPATIBILITY_COST,
   INSUFFICIENT_CREDITS_MESSAGE,
 } from '../config/pricing';
-import {
-  calculateLoveSynastry,
-  type LoveSynastryReport,
-} from '../oraculos/loveSynastryEngine';
+import type { LoveSynastryReport } from '../oraculos/loveSynastryEngine';
+
+function generateClientUUID(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return `idemp_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
+}
 
 export const LoveCompatibility: React.FC = () => {
   const { user, apiFetch, setUserCredits, addHistoryItem } = useApp();
 
-  const [name1, setName1] = useState(user?.fullName || '');
-  const [date1, setDate1] = useState(user?.birthDate || '');
+  // Person 1: Authoritative from authenticated user profile (Read-only)
+  const name1 = user?.fullName || '';
+  const date1 = user?.birthDate || '';
+  const time1 = user?.birthTime || '';
+
+  // Person 2: User input (strictly name, birthDate, optional birthTime, NO city)
   const [name2, setName2] = useState('');
   const [date2, setDate2] = useState('');
+  const [time2, setTime2] = useState('');
 
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
-  // Real spiritual synastry report
+  // Authoritative server-provided synastry report & reading
   const [synastryReport, setSynastryReport] = useState<LoveSynastryReport | null>(null);
   const [readingResult, setReadingResult] = useState<string | null>(null);
+
+  // Idempotency key per analysis action (maintained on retry, refreshed on reset)
+  const idempotencyKeyRef = useRef<string>(generateClientUUID());
 
   const handleCalculate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
     setErrorMsg('');
 
+    if (!user.birthDate) {
+      setErrorMsg('Seus dados natais estão incompletos em seu perfil. Por favor, atualize sua data de nascimento.');
+      return;
+    }
+
     if (user.credits < LOVE_COMPATIBILITY_COST) {
       setErrorMsg(INSUFFICIENT_CREDITS_MESSAGE);
       return;
     }
 
+    if (!name2.trim()) {
+      setErrorMsg('Por favor, informe o nome completo de solteiro da pessoa consultada.');
+      return;
+    }
+
+    if (!date2.trim()) {
+      setErrorMsg('Por favor, informe a data de nascimento da pessoa consultada.');
+      return;
+    }
+
     setIsLoading(true);
     try {
-      // 1. Calculate authentic deterministic synastry matrix crossing both individuals
-      const calculatedReport = calculateLoveSynastry({
-        name1,
-        birthDate1: date1,
-        name2,
-        birthDate2: date2,
-      });
-
-      // 2. Call backend reading API (5 credits) with full participant data
-      const res = await apiFetch('/api/reading', {
+      // Exclusively call /api/love-compatibility (single server-side tarot draw & calculation)
+      const res = await apiFetch('/api/love-compatibility', {
         method: 'POST',
         body: JSON.stringify({
-          type: 'tarot',
-          userData: {
-            fullName: name1,
-            birthDate: date1,
-          },
-          specificName: name2,
-          specificDate: date2,
-          question: `Sinastria e Compatibilidade Amorosa Profunda entre ${name1} (${calculatedReport.person1.astrology.sunSign}, Caminho ${calculatedReport.person1.numerology.lifePathNumber}) e ${name2} (${calculatedReport.person2.astrology.sunSign}, Caminho ${calculatedReport.person2.numerology.lifePathNumber})`,
+          fullName2: name2.trim(),
+          birthDate2: date2.trim(),
+          birthTime2: time2.trim() || undefined,
+          idempotencyKey: idempotencyKeyRef.current,
         }),
       });
 
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Erro na consulta espiritual.');
+      if (!res.ok) {
+        throw new Error(data.error || 'Erro ao processar sinastria amorosa no servidor sagrado.');
+      }
 
       if (typeof data.newCreditsBalance === 'number') {
         setUserCredits(data.newCreditsBalance);
       }
 
-      const title = `Compatibilidade Amorosa: ${name1} & ${name2}`;
+      if (data.synastryReport) {
+        setSynastryReport(data.synastryReport);
+      }
+
+      if (data.reading) {
+        setReadingResult(data.reading);
+      }
+
+      const title = `Compatibilidade Amorosa: ${name1} & ${name2.trim()}`;
       addHistoryItem({
-        id: `compat_${Date.now()}`,
+        id: data.readingRecord?.id || `compat_${Date.now()}`,
         userId: user.uid,
         type: 'compatibility',
         title,
         date: new Date().toISOString(),
         content: data.reading,
-        creditsUsed: LOVE_COMPATIBILITY_COST, // 5 créditos
+        creditsUsed: LOVE_COMPATIBILITY_COST,
       });
-
-      setSynastryReport(calculatedReport);
-      setReadingResult(data.reading);
     } catch (err: any) {
       setErrorMsg(err.message || 'Falha ao processar sinastria amorosa.');
     } finally {
@@ -94,7 +116,9 @@ export const LoveCompatibility: React.FC = () => {
     setReadingResult(null);
     setName2('');
     setDate2('');
+    setTime2('');
     setErrorMsg('');
+    idempotencyKeyRef.current = generateClientUUID();
   };
 
   return (
@@ -106,7 +130,7 @@ export const LoveCompatibility: React.FC = () => {
           Compatibilidade Amorosa Sagrada
         </h2>
         <p className="text-xs md:text-sm text-gray-300 max-w-xl mx-auto mt-2">
-          Cruzamento profundo entre dois mapas natais, numerologia da alma, cabala hermética, astrologia cósmica e tiragem real de Tarot.
+          Cruzamento profundo entre dois mapas natais, numerologia da alma, cabala hermética, astrologia cósmica e tiragem sagrada de Tarot realizada no altar de Maria Padilha.
         </p>
       </div>
 
@@ -218,12 +242,12 @@ export const LoveCompatibility: React.FC = () => {
             </div>
           </div>
 
-          {/* Real Tarot Spread */}
+          {/* Single Server Tarot Spread */}
           {synastryReport.tarotSpread.length > 0 && (
             <div className="rounded-lg border border-gray-800 bg-gray-950/40 p-4 mb-6">
               <h4 className="font-serif text-sm font-bold text-white mb-3 flex items-center gap-1.5">
                 <Moon className="w-4 h-4 text-red-400" />
-                Cartas Sagradas Reveladas no Sorteio Real
+                Cartas Sagradas Reveladas no Sorteio Real (Altar de Maria Padilha)
               </h4>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 {synastryReport.tarotSpread.map((draw, idx) => (
@@ -280,66 +304,71 @@ export const LoveCompatibility: React.FC = () => {
                 />
               </div>
               <h3 className="font-serif text-lg font-bold text-white flex items-center gap-2 justify-center">
-                <RefreshCw className="w-4 h-4 text-[#D4AF37] animate-spin" /> Cruzando Mapas e Destinos de Amor...
+                <RefreshCw className="w-4 h-4 text-[#D4AF37] animate-spin" /> Cruzando Mapas e Destinos de Amor no Servidor...
               </h3>
               <p className="text-xs text-gray-400 mt-2 max-w-xs">
-                Sincronizando astrologia, numerologia, cabala e abrindo as cartas do amor sagrado.
+                Sincronizando astrologia, numerologia, cabala e tiragem sagrada de Tarot.
               </p>
             </div>
           ) : (
             <div className="space-y-6">
-              {/* Person 1 (Consulente) */}
-              <div className="rounded-lg border border-gray-850 bg-gray-950/40 p-4">
-                <h3 className="text-xs font-serif uppercase tracking-wider text-[#D4AF37] font-bold mb-3 flex items-center gap-2">
-                  <User className="w-3.5 h-3.5" /> Seus Dados (Consulente)
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {/* Person 1 (Consulente) - STRICTLY READ-ONLY from authenticated DB profile */}
+              <div className="rounded-lg border border-gray-850 bg-gray-950/50 p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-xs font-serif uppercase tracking-wider text-[#D4AF37] font-bold flex items-center gap-2">
+                    <User className="w-3.5 h-3.5" /> Seus Dados Natais (Consulente)
+                  </h3>
+                  <span className="inline-flex items-center gap-1 text-[10px] text-gray-400 font-mono bg-zinc-900 px-2 py-0.5 rounded border border-zinc-800">
+                    <Lock className="w-3 h-3 text-[#D4AF37]" /> Perfil Autenticado
+                  </span>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                   <div>
-                    <label className="block text-[10.5px] uppercase font-mono text-gray-400 mb-1">Seu Nome Completo</label>
-                    <input
-                      type="text"
-                      value={name1}
-                      onChange={(e) => setName1(e.target.value)}
-                      placeholder="Ex: João da Silva"
-                      className="w-full rounded-md border border-gray-800 bg-gray-950 px-3 py-1.5 text-xs text-white focus:border-red-600 focus:outline-none"
-                      required
-                    />
+                    <label className="block text-[10px] uppercase font-mono text-gray-400 mb-1">Nome Completo</label>
+                    <div className="rounded-md border border-gray-800 bg-black/60 px-3 py-1.5 text-xs text-white font-medium truncate">
+                      {name1 || 'Não cadastrado'}
+                    </div>
                   </div>
                   <div>
-                    <label className="block text-[10.5px] uppercase font-mono text-gray-400 mb-1">Sua Data de Nascimento</label>
-                    <div className="relative">
-                      <Calendar className="absolute left-2.5 top-2 w-3.5 h-3.5 text-gray-500" />
-                      <input
-                        type="date"
-                        value={date1}
-                        onChange={(e) => setDate1(e.target.value)}
-                        className="w-full rounded-md border border-gray-800 bg-gray-950 pl-8 pr-3 py-1.5 text-xs text-white focus:border-red-600 focus:outline-none"
-                        required
-                      />
+                    <label className="block text-[10px] uppercase font-mono text-gray-400 mb-1">Data de Nascimento</label>
+                    <div className="rounded-md border border-gray-800 bg-black/60 px-3 py-1.5 text-xs text-white font-medium flex items-center gap-1.5">
+                      <Calendar className="w-3.5 h-3.5 text-[#D4AF37]" />
+                      <span>{date1 || 'Não informada'}</span>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] uppercase font-mono text-gray-400 mb-1">Hora de Nascimento</label>
+                    <div className="rounded-md border border-gray-800 bg-black/60 px-3 py-1.5 text-xs text-white font-medium flex items-center gap-1.5">
+                      <Clock className="w-3.5 h-3.5 text-gray-400" />
+                      <span>{time1 ? `${time1}` : 'Hora não informada'}</span>
                     </div>
                   </div>
                 </div>
               </div>
 
-              {/* Person 2 (Amor) */}
+              {/* Person 2 (Amor) - Full Name and Birth Date required, Birth Time optional, NO city */}
               <div className="rounded-lg border border-gray-850 bg-gray-950/40 p-4">
                 <h3 className="text-xs font-serif uppercase tracking-wider text-red-400 font-bold mb-3 flex items-center gap-2">
-                  <Heart className="w-3.5 h-3.5 text-red-500" /> Dados da Pessoa Amada
+                  <Heart className="w-3.5 h-3.5 text-red-500" /> Dados da Pessoa Consultada (Pessoa Amada)
                 </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-[10.5px] uppercase font-mono text-gray-400 mb-1">Nome da Pessoa Amada</label>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <div className="md:col-span-1">
+                    <label className="block text-[10px] uppercase font-mono text-gray-400 mb-1">
+                      Nome Completo de Solteiro <span className="text-red-500">*</span>
+                    </label>
                     <input
                       type="text"
                       value={name2}
                       onChange={(e) => setName2(e.target.value)}
-                      placeholder="Ex: Maria Pereira"
+                      placeholder="Ex: Maria Pereira da Silva"
                       className="w-full rounded-md border border-gray-800 bg-gray-950 px-3 py-1.5 text-xs text-white focus:border-red-600 focus:outline-none"
                       required
                     />
                   </div>
                   <div>
-                    <label className="block text-[10.5px] uppercase font-mono text-gray-400 mb-1">Data de Nascimento (Amor)</label>
+                    <label className="block text-[10px] uppercase font-mono text-gray-400 mb-1">
+                      Data de Nascimento <span className="text-red-500">*</span>
+                    </label>
                     <div className="relative">
                       <Calendar className="absolute left-2.5 top-2 w-3.5 h-3.5 text-gray-500" />
                       <input
@@ -348,6 +377,20 @@ export const LoveCompatibility: React.FC = () => {
                         onChange={(e) => setDate2(e.target.value)}
                         className="w-full rounded-md border border-gray-800 bg-gray-950 pl-8 pr-3 py-1.5 text-xs text-white focus:border-red-600 focus:outline-none"
                         required
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] uppercase font-mono text-gray-400 mb-1">
+                      Hora de Nascimento (Opcional)
+                    </label>
+                    <div className="relative">
+                      <Clock className="absolute left-2.5 top-2 w-3.5 h-3.5 text-gray-500" />
+                      <input
+                        type="time"
+                        value={time2}
+                        onChange={(e) => setTime2(e.target.value)}
+                        className="w-full rounded-md border border-gray-800 bg-gray-950 pl-8 pr-3 py-1.5 text-xs text-white focus:border-red-600 focus:outline-none"
                       />
                     </div>
                   </div>

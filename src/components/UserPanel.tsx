@@ -1,5 +1,5 @@
 import React from 'react';
-import { LogOut, User, Coins, Crown, Mail, Phone, MapPin } from 'lucide-react';
+import { LogOut, User, Coins, Crown, Mail, Phone, Calendar, Clock } from 'lucide-react';
 import { useApp } from '../contexts/AppContext';
 
 export const UserPanel: React.FC = () => {
@@ -63,10 +63,12 @@ export const UserPanel: React.FC = () => {
             {user.phone || 'Telefone não informado'}
           </p>
 
-          <p className="flex items-center gap-2">
-            <MapPin className="w-4 h-4 text-red-300" />
-            {user.city || 'Cidade não informada'}
-          </p>
+          {user.birthDate && (
+            <p className="flex items-center gap-2">
+              <Calendar className="w-4 h-4 text-red-300" />
+              {user.birthDate} {user.birthTime ? `(${user.birthTime})` : ''}
+            </p>
+          )}
         </div>
 
         <div className="bg-black/50 rounded-xl p-3 border border-red-900">

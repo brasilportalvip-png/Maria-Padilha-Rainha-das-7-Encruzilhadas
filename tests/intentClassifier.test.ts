@@ -82,4 +82,44 @@ describe('Universal Intent Classifier (Requisitos Críticos 21, 22, 73)', () => 
     expect(result.isRomantic).toBe(true);
     expect(result.primaryCategory).toBe('reconciliacao');
   });
+
+  it('deve classificar "Minha irmã Ana vai conseguir emprego?" como familia/emprego, NUNCA amor', () => {
+    const question = 'Minha irmã Ana vai conseguir emprego?';
+    const result = classifyIntent(question);
+
+    expect(result.isRomantic).toBe(false);
+    expect(result.isBusinessOrCareer).toBe(true);
+    expect(['familia', 'emprego']).toContain(result.primaryCategory);
+    expect(result.participants.some((p) => p.name.includes('Ana') && p.role === 'familiar')).toBe(true);
+  });
+
+  it('deve classificar "Roberto ainda me ama e existe reconciliação?" como amor/reconciliação', () => {
+    const question = 'Roberto ainda me ama e existe reconciliação?';
+    const result = classifyIntent(question);
+
+    expect(result.isRomantic).toBe(true);
+    expect(['amor', 'reconciliacao', 'relacionamento']).toContain(result.primaryCategory);
+  });
+
+  it('deve classificar "Meu chefe Carlos vai aprovar meu projeto?" como trabalho/negócios, NUNCA amor', () => {
+    const question = 'Meu chefe Carlos vai aprovar meu projeto?';
+    const result = classifyIntent(question);
+
+    expect(result.isRomantic).toBe(false);
+    expect(result.isBusinessOrCareer).toBe(true);
+    expect(['emprego', 'negocios', 'sociedade']).toContain(result.primaryCategory);
+    expect(result.participants.some((p) => p.name.includes('Carlos'))).toBe(true);
+  });
+
+  it('não deve atribuir a mesma data a todas as pessoas quando houver múltiplas pessoas com datas distintas', () => {
+    const question = 'Estou em sociedade com João 10/02/1980 e Carlos 15/04/1975. Vamos prosperar?';
+    const result = classifyIntent(question);
+
+    expect(result.isRomantic).toBe(false);
+    const joao = result.participants.find((p) => p.name.includes('João'));
+    const carlos = result.participants.find((p) => p.name.includes('Carlos'));
+
+    expect(joao?.birthDate).toBe('10/02/1980');
+    expect(carlos?.birthDate).toBe('15/04/1975');
+  });
 });

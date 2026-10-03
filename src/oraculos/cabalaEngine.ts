@@ -1,3 +1,5 @@
+import { parseAndValidateDate } from '../utils/dateNormalizer.js';
+
 export interface GuardianAngel {
   number: number;
   name: string;
@@ -31,7 +33,6 @@ const SEPHIROTH = [
   { number: 10, name: 'Malkuth (Reino)', attribute: 'Materialização, Realização Terrena e Força no Mundo', archangel: 'Sandalphon', choir: 'Ishim' },
 ];
 
-// Sample of official 72 Kabbalistic Angels mapped across astrological solar calendar
 const SAMPLE_ANGELS: GuardianAngel[] = [
   { number: 1, name: 'Vehuiah', choir: 'Serafins', archangel: 'Metatron', period: '21 a 25 de Março', virtue: 'Vontade transformadora e clareza espiritual' },
   { number: 2, name: 'Jeliel', choir: 'Serafins', archangel: 'Metatron', period: '26 a 30 de Março', virtue: 'Harmonia, fidelidade e paz interior' },
@@ -55,24 +56,7 @@ const SAMPLE_ANGELS: GuardianAngel[] = [
 ];
 
 export function calculateCabala(birthDateStr: string): CabalaResult {
-  // Normalize and parse birthDate
-  const cleanDate = (birthDateStr || '').replace(/\D/g, '');
-  let day = 1;
-  let month = 1;
-  let year = 1990;
-
-  if (cleanDate.length >= 8) {
-    if (birthDateStr.includes('-')) {
-      const parts = birthDateStr.split('-');
-      year = parseInt(parts[0], 10) || 1990;
-      month = parseInt(parts[1], 10) || 1;
-      day = parseInt(parts[2], 10) || 1;
-    } else {
-      day = parseInt(cleanDate.substring(0, 2), 10) || 1;
-      month = parseInt(cleanDate.substring(2, 4), 10) || 1;
-      year = parseInt(cleanDate.substring(4, 8), 10) || 1990;
-    }
-  }
+  const { day, month, year } = parseAndValidateDate(birthDateStr);
 
   // 1. Sephirah calculation (reduction of full birth date digits to 1..10)
   const digits = `${day}${month}${year}`.split('').map(Number);

@@ -8,7 +8,7 @@ import {
   Lock,
   User,
   Calendar,
-  MapPin,
+  Clock,
   AlertCircle,
   Eye,
   EyeOff,
@@ -32,7 +32,6 @@ export const Auth: React.FC = () => {
   const [phone, setPhone] = useState('');
   const [birthDate, setBirthDate] = useState('');
   const [birthTime, setBirthTime] = useState('');
-  const [city, setCity] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
 
@@ -70,8 +69,8 @@ export const Auth: React.FC = () => {
       return;
     }
 
-    if (password.length < 6) {
-      setErrorMsg('A senha secreta deve ter no mínimo 6 caracteres.');
+    if (password.length < 8) {
+      setErrorMsg('A senha secreta deve ter no mínimo 8 caracteres.');
       return;
     }
 
@@ -86,8 +85,7 @@ export const Auth: React.FC = () => {
         email: email.trim(),
         phone: phone.trim(),
         birthDate,
-        birthTime: birthTime || undefined,
-        city: city.trim(),
+        birthTime: birthTime || null,
         password,
       });
 
@@ -266,18 +264,18 @@ export const Auth: React.FC = () => {
             </button>
           </form>
         ) : (
-          <form onSubmit={handleRegisterSubmit} className="space-y-4 max-h-[460px] overflow-y-auto pr-1">
+          <form onSubmit={handleRegisterSubmit} className="space-y-3.5 max-h-[75dvh] sm:max-h-none overflow-y-auto sm:overflow-visible pr-1">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label htmlFor="reg_name_input" className="block text-[10px] font-semibold uppercase tracking-wider text-gray-300 mb-0.5">
-                  Nome Completo
+                  Nome Completo de Solteiro
                 </label>
                 <div className="relative">
                   <User className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-gray-500" />
                   <input
                     id="reg_name_input"
                     type="text"
-                    placeholder="Ex: Ana Maria"
+                    placeholder="Nome completo de solteiro"
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
                     className="w-full rounded-md border border-gray-800 bg-gray-950 pl-8 pr-3 py-1.5 text-xs text-white focus:border-[#D4AF37] focus:outline-none"
@@ -325,28 +323,8 @@ export const Auth: React.FC = () => {
               </div>
 
               <div>
-                <label htmlFor="reg_city_input" className="block text-[10px] font-semibold uppercase tracking-wider text-gray-300 mb-0.5">
-                  Cidade de Nascimento
-                </label>
-                <div className="relative">
-                  <MapPin className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-gray-500" />
-                  <input
-                    id="reg_city_input"
-                    type="text"
-                    placeholder="São Paulo - SP"
-                    value={city}
-                    onChange={(e) => setCity(e.target.value)}
-                    className="w-full rounded-md border border-gray-800 bg-gray-950 pl-8 pr-3 py-1.5 text-xs text-white focus:border-[#D4AF37] focus:outline-none"
-                    required
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
                 <label htmlFor="reg_birthdate_input" className="block text-[10px] font-semibold uppercase tracking-wider text-gray-300 mb-0.5">
-                  Data de Nascimento (Dados Natais)
+                  Data de Nascimento Exata (Obrigatória)
                 </label>
                 <div className="relative">
                   <Calendar className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-gray-500" />
@@ -360,28 +338,31 @@ export const Auth: React.FC = () => {
                   />
                 </div>
               </div>
+            </div>
 
-              <div>
-                <label htmlFor="reg_birthtime_input" className="block text-[10px] font-semibold uppercase tracking-wider text-gray-300 mb-0.5">
-                  Hora de Nascimento (Opcional)
-                </label>
-                <div className="relative">
-                  <Calendar className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-gray-500" />
-                  <input
-                    id="reg_birthtime_input"
-                    type="time"
-                    value={birthTime}
-                    onChange={(e) => setBirthTime(e.target.value)}
-                    className="w-full rounded-md border border-gray-800 bg-gray-950 pl-8 pr-3 py-1.5 text-xs text-white focus:border-[#D4AF37] focus:outline-none"
-                  />
-                </div>
+            <div>
+              <label htmlFor="reg_birthtime_input" className="block text-[10px] font-semibold uppercase tracking-wider text-gray-300 mb-0.5">
+                Hora de Nascimento
+              </label>
+              <div className="relative">
+                <Clock className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-gray-500" />
+                <input
+                  id="reg_birthtime_input"
+                  type="time"
+                  value={birthTime}
+                  onChange={(e) => setBirthTime(e.target.value)}
+                  className="w-full rounded-md border border-gray-800 bg-gray-950 pl-8 pr-3 py-1.5 text-xs text-white focus:border-[#D4AF37] focus:outline-none"
+                />
               </div>
+              <span className="text-[10px] text-gray-400 block mt-1">
+                Hora de nascimento — opcional, informe somente se souber.
+              </span>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label htmlFor="reg_password_input" className="block text-[10px] font-semibold uppercase tracking-wider text-gray-300 mb-0.5">
-                  Senha (mínimo 6 dígitos)
+                  Senha (mínimo 8 caracteres)
                 </label>
                 <div className="relative">
                   <Lock className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-gray-500" />
@@ -392,6 +373,7 @@ export const Auth: React.FC = () => {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     className="w-full rounded-md border border-gray-800 bg-gray-950 pl-8 pr-10 py-1.5 text-xs text-white focus:border-[#D4AF37] focus:outline-none"
+                    minLength={8}
                     required
                   />
                   <button

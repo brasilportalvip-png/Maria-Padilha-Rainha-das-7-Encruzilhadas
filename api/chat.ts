@@ -9,6 +9,11 @@ import { classifyIntent } from '../src/oraculos/intentClassifier.js';
 import { analyzeQuestionRepetition } from '../src/oraculos/antiRepetition.js';
 import { drawTarotCards } from '../src/oraculos/tarotEngine.js';
 import { saveOracleReading } from '../src/oraculos/readingStorage.js';
+import {
+  acquireOperation,
+  completeOperation,
+  failOperation,
+} from './services/operationService.js';
 import { logger } from './services/logger.js';
 import type { NatalData, OracleReadingRecord } from '../src/types/spiritual.js';
 import {
@@ -113,8 +118,45 @@ export default async function handler(req: Request, res: Response) {
     requiredCredits = ORACLE_QUESTION_COST; // 5 créditos
   }
 
+  // IdempotencyKey is MANDATORY for paid oracle chat operations
+  if (requiredCredits > 0) {
+    if (!idempotencyKey || typeof idempotencyKey !== 'string' || idempotencyKey.trim().length === 0) {
+      return res.status(400).json({
+        error: 'idempotencyKey é obrigatória para consultas oraculares pagas no chat.',
+        code: 'MISSING_IDEMPOTENCY_KEY',
+      });
+    }
+
+    // Atomic Operation Lock acquired BEFORE debit, draw, or Gemini
+    const opCheck = await acquireOperation(user.uid, idempotencyKey, 'chat');
+
+if (opCheck.status === 'completed') {
+  return res.status(200).json({
+    ...opCheck.operation.resultPayload,
+    isCached: true,
+  });
+}
+
+if (opCheck.status === 'failed') {
+  return res.status(409).json({
+    error: 'Esta tentativa anterior falhou e foi encerrada. Inicie uma nova consulta.',
+    code: 'OPERATION_PREVIOUSLY_FAILED',
+  });
+}
+
+if (opCheck.status === 'processing') {
+  return res.status(409).json({
+    error: 'Esta consulta oracular já está sendo processada. Por favor, aguarde.',
+    code: 'OPERATION_IN_PROGRESS',
+  });
+}
+  }
+
   // Pre-check balance before any operations
   if (requiredCredits > 0 && user.credits < requiredCredits) {
+    if (idempotencyKey) {
+      await failOperation(user.uid, idempotencyKey, 'INSUFFICIENT_CREDITS');
+    }
     return res.status(402).json({
       error: INSUFFICIENT_CREDITS_MESSAGE,
       code: 'INSUFFICIENT_CREDITS',
@@ -130,8 +172,7 @@ export default async function handler(req: Request, res: Response) {
   const natalData: NatalData = {
     fullName: user.fullName,
     birthDate: user.birthDate,
-    birthTime: user.birthTime,
-    city: user.city,
+    birthTime: user.birthTime || null,
     timezone: userTimezone,
   };
 
@@ -165,6 +206,9 @@ export default async function handler(req: Request, res: Response) {
       idempotencyKey: idempotencyKey || `chat_${user.uid}_${crypto.randomUUID()}`,
     });
   } catch (err: any) {
+    if (idempotencyKey) {
+      await failOperation(user.uid, idempotencyKey, err.message || 'DEBIT_FAILED');
+    }
     if (err.message === 'INSUFFICIENT_CREDITS') {
       return res.status(402).json({
         error: INSUFFICIENT_CREDITS_MESSAGE,
@@ -185,6 +229,7 @@ export default async function handler(req: Request, res: Response) {
     };
   }
 
+try {
   // 6. Assemble deep permanent spiritual profile & AI context
   const spiritualContext = await assembleSpiritualAIContext({
     user,
@@ -203,7 +248,7 @@ ${repetition.isRepeatedQuestion ? `Nota: ${repetition.adviceGuidance}` : ''}
 ${spiritualContext.systemContext}
 `;
 
-  try {
+  
     const geminiResult = await executeGeminiWithFallback({
       systemInstruction,
       userPrompt: message,
@@ -221,27 +266,27 @@ ${spiritualContext.systemContext}
       throw new Error('AI_GENERATION_FAILED');
     }
 
-    // If an oracle card was drawn, persist the reading record
-    if (rawOracleResult?.tarotSpread) {
-      const readingRecord: OracleReadingRecord = {
-        id: `read_chat_${crypto.randomUUID()}`,
-        readingId: `read_chat_${crypto.randomUUID()}`,
-        uid: user.uid,
-        oracleType: 'tarot',
-        question: message,
-        intent,
-        natalSnapshot: natalData,
-        rawResult: rawOracleResult,
-        interpretationHtml: geminiResult.text,
-        practicalAdvice: 'Siga com firmeza e mantenha seu coração sereno.',
-        modelUsed: geminiResult.modelUsed,
-        fallbackLevel: geminiResult.fallbackLevel,
-        creditCost: requiredCredits,
-        createdAt: new Date().toISOString(),
-        timezone: userTimezone,
-      };
-      await saveOracleReading(readingRecord);
-    }
+    // Persist reading record for both initial oracle question AND paid follow-up
+    const chatReadingId = `read_chat_${crypto.randomUUID()}`;
+    const readingRecord: OracleReadingRecord = {
+      id: chatReadingId,
+      readingId: chatReadingId,
+      uid: user.uid,
+      oracleType: 'tarot',
+      spreadType: messageType === 'ORACLE_FOLLOWUP' ? 'chat_followup' : 'uma_carta',
+      question: message,
+      intent,
+      natalSnapshot: natalData,
+      rawResult: rawOracleResult || { followup: true, prompt: message },
+      interpretationHtml: geminiResult.text,
+      practicalAdvice: 'Siga com firmeza e mantenha seu coração sereno.',
+      modelUsed: geminiResult.modelUsed,
+      fallbackLevel: geminiResult.fallbackLevel,
+      creditCost: requiredCredits,
+      createdAt: new Date().toISOString(),
+      timezone: userTimezone,
+    };
+    await saveOracleReading(readingRecord, idempotencyKey);
 
     recordSpiritualEvent({
       uid: user.uid,
@@ -249,7 +294,7 @@ ${spiritualContext.systemContext}
       summary: message.slice(0, 150),
     }).catch(() => {});
 
-    return res.status(200).json({
+    const responsePayload = {
       reply: geminiResult.text,
       creditsCost: requiredCredits,
       newCreditsBalance: debitResult.newBalance,
@@ -258,9 +303,25 @@ ${spiritualContext.systemContext}
       messageType,
       isFallback: geminiResult.isFallback,
       cardRevealed: rawOracleResult?.tarotSpread?.[0]?.card?.name,
-    });
+      readingId: chatReadingId,
+    };
+
+    if (idempotencyKey) {
+      await completeOperation(user.uid, idempotencyKey, {
+        readingId: chatReadingId,
+        ledgerId: debitResult.ledgerId,
+        rawOracleResult,
+        resultPayload: responsePayload,
+      });
+    }
+
+    return res.status(200).json(responsePayload);
   } catch (err: any) {
     logger.error('Gemini failed for chat message, executing automatic credit refund', err, correlationId);
+
+    if (idempotencyKey) {
+      await failOperation(user.uid, idempotencyKey, err.message || 'AI_FAILED', debitResult.ledgerId);
+    }
 
     // Automatic credit refund on failure — NO FAKE LOCAL CHAT RESPONSE
     await refundCredits({

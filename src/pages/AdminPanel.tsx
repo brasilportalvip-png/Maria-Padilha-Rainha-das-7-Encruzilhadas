@@ -237,7 +237,7 @@ export const AdminPanel: React.FC = () => {
                 <tr>
                   <th className="p-3">Consulente</th>
                   <th className="p-3">E-mail</th>
-                  <th className="p-3">Data Nasc. / Cidade</th>
+                  <th className="p-3">Data Nasc. / Hora</th>
                   <th className="p-3">Saldo Créditos</th>
                   <th className="p-3">Status</th>
                   <th className="p-3 text-right">Ações</th>
@@ -262,7 +262,7 @@ export const AdminPanel: React.FC = () => {
                         )}
                       </td>
                       <td className="p-3 font-mono">{u.email}</td>
-                      <td className="p-3">{u.birthDate || 'N/I'} • {u.city || 'N/I'}</td>
+                      <td className="p-3">{u.birthDate || 'N/I'} • {u.birthTime || 'Hora N/I'}</td>
                       <td className="p-3 font-mono font-bold text-[#D4AF37]">{u.credits} cr</td>
                       <td className="p-3">
                         {u.isBlocked ? (

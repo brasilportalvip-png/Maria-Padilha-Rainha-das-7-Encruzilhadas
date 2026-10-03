@@ -236,7 +236,7 @@ const GUARDIAS = [
   linha: 'Maria Padilhas',
   campo: 'emoções, limpeza, encantamento, amor e movimento das águas.',
   luz: 'limpa mágoas, suaviza dores e fortalece o magnetismo emocional.',
-  sombra: 'ilusões, carência, instabilidade e excesso de fantasia.',
+  sombra: 'ilusões, carência, instabilidade e excesso de devaneios.',
   conselho: 'sinta, mas não se afogue no que sente.',
   apareceQuando: ['emoção', 'amor', 'mágoa', 'limpeza', 'carência']
 },
@@ -443,7 +443,7 @@ const GUARDIAS = [
   linha: 'Rosas',
   campo: 'intuição, romance, saudade, sonhos e sentimentos escondidos.',
   luz: 'clareia sentimentos ocultos e fortalece percepção emocional.',
-  sombra: 'fantasia, idealização e espera sem atitude.',
+  sombra: 'devaneios, idealização irreal e espera sem atitude.',
   conselho: 'sonhar é bonito, mas caminho se abre com postura.',
   apareceQuando: ['saudade', 'romance', 'sonho', 'intuição', 'sentimento oculto']
 },
@@ -560,7 +560,7 @@ const GUARDIAS = [
   linha: 'Ciganas',
   campo: 'intuição, destino, sonhos, romance e sinais ocultos.',
   luz: 'revela caminhos pela intuição e fortalece percepção espiritual.',
-  sombra: 'fantasia, instabilidade e excesso de sonho.',
+  sombra: 'devaneios, instabilidade e excesso de desatenção.',
   conselho: 'a lua mostra sinais, mas quem caminha é você.',
   apareceQuando: ['intuição', 'lua', 'sonhos', 'romance', 'destino']
 },
@@ -578,7 +578,7 @@ const GUARDIAS = [
   linha: 'Ciganas',
   campo: 'sabedoria, visão espiritual, destino, mistério e conselho.',
   luz: 'traz visão ampla, intuição e orientação de caminhos.',
-  sombra: 'excesso de fantasia, distância emocional e fuga da realidade.',
+  sombra: 'excesso de devaneios, distância emocional e fuga da realidade.',
   conselho: 'veja longe, mas não esqueça o chão onde pisa.',
   apareceQuando: ['sabedoria', 'visão', 'destino', 'orientação', 'mistério']
 },
@@ -787,7 +787,7 @@ const GUARDIAS = [
   linha: 'Maria Padilhas',
   campo: 'intuição, amor oculto, sonhos, saudade e mistério feminino.',
   luz: 'clareia sentimentos escondidos e fortalece percepção espiritual.',
-  sombra: 'fantasia, ilusão, espera e emoção instável.',
+  sombra: 'devaneios, ilusão, espera passiva e emoção instável.',
   conselho: 'a lua mostra, mas não carrega seus passos.',
   apareceQuando: ['lua', 'intuição', 'saudade', 'sonho', 'amor oculto']
 },
@@ -1039,7 +1039,7 @@ const GUARDIAS = [
   linha: 'Damas',
   campo: 'intuição, amor oculto, silêncio, sonhos e percepção.',
   luz: 'clareia sentimentos escondidos e fortalece a intuição.',
-  sombra: 'fantasia, idealização e confusão emocional.',
+  sombra: 'devaneios, idealização infundada e confusão emocional.',
   conselho: 'escute sua intuição, mas não abandone a realidade.',
   apareceQuando: ['lua', 'intuição', 'sonho', 'amor oculto', 'silêncio']
 },
@@ -1075,7 +1075,7 @@ const GUARDIAS = [
   linha: 'Damas',
   campo: 'segredos, mistério feminino, revelação gradual e proteção.',
   luz: 'retira véus da ilusão e mostra verdades escondidas aos poucos.',
-  sombra: 'segredo, manipulação, fantasia e confusão.',
+  sombra: 'segredo, manipulação, ilusões e confusão mental.',
   conselho: 'nem tudo se revela de uma vez; observe sem se enganar.',
   apareceQuando: ['segredo', 'véu', 'mistério', 'ilusão', 'revelação']
 },
@@ -1120,7 +1120,7 @@ const GUARDIAS = [
   linha: 'Ciganas',
   campo: 'cura, prosperidade, intuição, beleza e caminhos de crescimento.',
   luz: 'abre visão, fortalece esperança e favorece prosperidade.',
-  sombra: 'fantasia, apego a promessas e instabilidade.',
+  sombra: 'apego cego a promessas vazias e instabilidade.',
   conselho: 'brilhe com sabedoria, não com ilusão.',
   apareceQuando: ['prosperidade', 'intuição', 'cura', 'beleza', 'crescimento']
 },
@@ -1201,7 +1201,7 @@ const GUARDIAS = [
   linha: 'Rainhas',
   campo: 'sabedoria, visão espiritual, destino, segredo e orientação.',
   luz: 'traz visão ampla, discernimento e direção espiritual.',
-  sombra: 'distância emocional, fantasia e fuga da realidade.',
+  sombra: 'distância emocional, devaneios e fuga da realidade.',
   conselho: 'sabedoria é enxergar longe sem perder o chão.',
   apareceQuando: ['oriente', 'sabedoria', 'destino', 'visão', 'orientação']
 }

@@ -1,5 +1,5 @@
 import type { Request, Response, NextFunction } from 'express';
-import { adminAuth, firestore } from '../_firebaseAdmin.js';
+import { adminAuth, firestore, FieldValue } from '../_firebaseAdmin.js';
 import type { UserProfile } from '../../src/types/spiritual.js';
 
 export interface AuthenticatedRequest extends Request {
@@ -85,7 +85,14 @@ export async function requireAuth(req: AuthenticatedRequest, res: Response, next
     let data: UserProfile;
 
     if (userDoc.exists) {
-      data = userDoc.data() as UserProfile;
+      const rawData = (userDoc.data() || {}) as any;
+      if ('city' in rawData) {
+        delete rawData.city;
+        if (typeof userDoc.ref?.update === 'function') {
+          userDoc.ref.update({ city: FieldValue?.delete ? FieldValue.delete() : null }).catch(() => {});
+        }
+      }
+      data = rawData as UserProfile;
     } else if (isTestEnv && authHeader?.includes('test_token_')) {
       data = {
         uid: tokenPayload.uid,
@@ -94,7 +101,6 @@ export async function requireAuth(req: AuthenticatedRequest, res: Response, next
         phone: '',
         birthDate: '1990-01-01',
         birthTime: '12:00',
-        city: 'São Paulo',
         timezone: 'America/Sao_Paulo',
         credits: 10,
         isBlocked: false,
